@@ -44,6 +44,7 @@ svg text{font-family:inherit}
 #graph{width:100%;height:auto;display:block}
 .node-label{font-size:12px;fill:var(--ink);text-anchor:middle}
 .edge{stroke:var(--line);stroke-width:1.5}
+.edge.direct{stroke-dasharray:6 5}
 .edge.cand{stroke:var(--accent);stroke-width:2.5}
 .edge.walked{stroke:var(--accent);stroke-width:5;opacity:.85}
 .edge.walked.good{stroke:var(--good)} .edge.walked.bad{stroke:var(--bad)}
@@ -54,7 +55,7 @@ svg text{font-family:inherit}
 <body>
 <header>
   <h1>RL Agent đi từ Learner đến Course</h1>
-  <p>Agent đi 3 bước trên bản đồ. Tới đúng khóa An thật sự học (⭐) = reward 1, sai = reward 0.</p>
+  <p>Agent đi 3 bước trên bản đồ. Tới khóa An đã học (⭐) bằng path dài hơn 1 hop = reward 1. Sai, hoặc đi thẳng 1 hop = reward 0.</p>
 </header>
 
 <div class="controls">
@@ -62,6 +63,7 @@ svg text{font-family:inherit}
   <button class="primary" id="btnNext">Bước tiếp ▶</button>
   <button class="good" id="btnGood">Ví dụ ĐÚNG</button>
   <button class="bad" id="btnBad">Ví dụ SAI</button>
+  <button class="bad" id="btnDirect">Ví dụ ĐI THẲNG (1 hop)</button>
   <button id="btnTrain">Cho agent học ×100</button>
   <button id="btnReset">Reset</button>
 </div>
@@ -102,7 +104,7 @@ const N = {
 };
 const TARGETS = new Set(['ml','dl']);
 const EDGES = [
-  ['an','python','enr'],['an','stats','enr'],
+  ['an','python','enr'],['an','stats','enr'],['an','ml','enr'],['an','dl','enr'],
   ['binh','python','enr'],['binh','ml','enr'],['binh','photo','enr'],
   ['chi','python','enr'],['chi','web','enr'],['chi','photo','enr'],
   ['dung','stats','enr'],['dung','dl','enr'],
@@ -147,9 +149,10 @@ function newEp(forced){
   return e;
 }
 function reward(path){
-  const hops = path.filter((n,i)=> i>0 && n!==path[i-1]).length;
+  const moves = path.filter((n,i)=> i===0 || n!==path[i-1]);
+  const hops = moves.length - 1, loop = new Set(moves).size < moves.length;
   const last = path[path.length-1];
-  return {isTarget: TARGETS.has(last), hops, value: TARGETS.has(last) && hops > 1 ? 1 : 0};
+  return {isTarget: TARGETS.has(last), hops, loop, value: TARGETS.has(last) && hops > 1 && !loop ? 1 : 0};
 }
 function learn(e){
   const R = e.reward.value, adv = R - baseline, rows = [];
@@ -221,7 +224,8 @@ function renderGraph(){
   for (const [a,b] of EDGES){
     const w = walked.has(a+'>'+b) || walked.has(b+'>'+a);
     const cand = cp && ((cp.node===a && cp.list.includes(b)) || (cp.node===b && cp.list.includes(a)));
-    h += `<line class="edge ${w?'walked '+res:''} ${cand&&!w?'cand':''}" x1="${N[a].x}" y1="${N[a].y}" x2="${N[b].x}" y2="${N[b].y}"/>`;
+    const direct = (a==='an' && TARGETS.has(b)) ? 'direct' : '';
+    h += `<line class="edge ${direct} ${w?'walked '+res:''} ${cand&&!w?'cand':''}" x1="${N[a].x}" y1="${N[a].y}" x2="${N[b].x}" y2="${N[b].y}"/>`;
   }
   if (cp) cp.list.forEach((to,i)=>{
     if (to === cp.node) return;
@@ -256,11 +260,14 @@ function renderPanel(){
     if (moved) d += `<p class="mute">🌍 Môi trường: đã chuyển agent sang ${N[ep.moved.list[ep.moved.ai]].s}. Chưa có reward.</p>`;
     d += `<p>📍 Agent đang ở <b>${N[c.node].s}</b>, bước ${c.t+1}/${STEPS}.<br><span class="mute">Đã đi: ${chips(ep.path)}</span></p>
       <p>🧭 Có thể đi ${ph==='chosen' ? '(đã chọn)' : 'theo xác suất'}:</p>` +
-      c.list.map((to,i)=>`<div class="opt ${i===c.ai?'pick':''}"><span>${verb(c.node,to)}</span><span>${pct(c.p[i])}</span></div>`).join('');
+      c.list.map((to,i)=>`<div class="opt ${i===c.ai?'pick':''}"><span>${verb(c.node,to)}${c.node==='an' && TARGETS.has(to) ? ' <span class="down">(đi thẳng 1 hop, không được thưởng)</span>' : ''}</span><span>${pct(c.p[i])}</span></div>`).join('');
   } else if (ph === 'end') d = `<p>🌍 Hết ${STEPS} bước. Agent dừng ở <b>${N[ep.path[ep.path.length-1]].s}</b>.</p><p>Môi trường kiểm tra: đây có phải khóa An thật sự học (⭐) không?</p>`;
   else if (ph === 'rewarded'){
     const r = ep.reward;
-    d = `<p>🌍 ${r.isTarget ? '✅ Đúng khóa An thật sự học' : '❌ Không phải khóa An học'} → <b>reward = ${r.value}</b></p>`;
+    d = `<p>🌍 Môi trường chấm 2 điều kiện:</p>
+      <p>${r.isTarget ? '✅' : '❌'} Cuối path là khóa An đã học (⭐)</p>
+      <p>${r.hops > 1 && !r.loop ? '✅' : '❌'} Path dài hơn 1 hop (đi thẳng không tính) và không vòng lại node cũ. Đã đi ${r.hops} hop${r.loop ? ', có vòng lại' : ''}</p>
+      <p>→ <b>reward = ${r.value}</b></p>`;
   } else if (ph === 'learned'){
     const L = ep.learn;
     const verdict = L.adv > 0 ? 'Đúng hơn kỳ vọng: <b class="up">tăng</b> xác suất các bước đã đi.'
@@ -276,7 +283,7 @@ function renderPanel(){
   const rb = $('rewardBox');
   if (ep && ep.reward && (ph === 'rewarded' || ph === 'learned')){
     const ok = ep.reward.value === 1;
-    rb.innerHTML = `<div class="banner ${ok?'good':'bad'}">${ok?'✅ ĐÚNG, reward = 1':'❌ SAI, reward = 0'}<div style="font-weight:400">${chips(ep.path)}</div>${ok?`<div style="font-weight:400;margin-top:4px">Giải thích cho An: ${explain(ep.path)}</div>`:''}</div>`;
+    rb.innerHTML = `<div class="banner ${ok?'good':'bad'}">${ok?'✅ ĐÚNG, reward = 1':'❌ SAI, reward = 0'}<div style="font-weight:400">${chips(ep.path)}</div>${ok?`<div style="font-weight:400;margin-top:4px">Giải thích cho An: ${explain(ep.path)}</div>`:''}${ep.reward.isTarget && ep.reward.value === 0 ? `<div style="font-weight:400;margin-top:4px">Tới đúng khóa nhưng ${ep.reward.hops <= 1 ? 'đi thẳng 1 hop' : 'vòng lại node cũ'}, không được thưởng (không có gì để giải thích cho An).</div>` : ''}</div>`;
   } else rb.innerHTML = '';
 }
 
@@ -294,6 +301,7 @@ function render(){ $('btnBack').disabled = !undo.length; renderGraph(); renderPa
 $('btnNext').onclick = stepEp;
 $('btnGood').onclick = () => forced(['an','python','binh','ml']);
 $('btnBad').onclick = () => forced(['an','python','chi','web']);
+$('btnDirect').onclick = () => forced(['an','ml','ml','ml']);
 $('btnReset').onclick = reset;
 $('btnBack').onclick = back;
 $('btnTrain').onclick = () => { snap(); for (let i=0;i<100;i++) silentEp(); ep = null; render(); };
