@@ -21,6 +21,7 @@ header p{margin:4px 0 0;color:var(--mute)}
 .controls{display:flex;flex-wrap:wrap;gap:8px;padding:10px 20px}
 button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 14px;cursor:pointer}
 button:hover{border-color:var(--accent)}
+button:disabled{opacity:.4;cursor:default;border-color:var(--line)}
 button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 button.good{border-color:var(--good);color:var(--good)}
 button.bad{border-color:var(--bad);color:var(--bad)}
@@ -57,6 +58,7 @@ svg text{font-family:inherit}
 </header>
 
 <div class="controls">
+  <button id="btnBack">◀ Lùi</button>
   <button class="primary" id="btnNext">Bước tiếp ▶</button>
   <button class="good" id="btnGood">Ví dụ ĐÚNG</button>
   <button class="bad" id="btnBad">Ví dụ SAI</button>
@@ -128,7 +130,7 @@ function explain(path){
 
 const STEPS = 3, ALPHA = 0.5, BASE_LR = 0.1;
 let theta, baseline, history, epCount, ep;
-function reset(){ theta = {}; baseline = 0; history = []; epCount = 0; ep = null; render(); }
+function reset(){ theta = {}; baseline = 0; history = []; epCount = 0; ep = null; undo.length = 0; render(); }
 
 const acts = node => [...ADJ[node], node];
 function logits(node, t){ const k = node+'|'+t; return theta[k] || (theta[k] = acts(node).map(()=>0)); }
@@ -161,7 +163,15 @@ function learn(e){
   history.push(R); epCount++;
 }
 
-function stepEp(){
+const undo = [];
+function snap(){ undo.push(structuredClone({theta, baseline, history, epCount, ep})); if (undo.length > 300) undo.shift(); }
+function back(){
+  if (!undo.length) return;
+  ({theta, baseline, history, epCount, ep} = undo.pop());
+  render();
+}
+function stepEp(){ snap(); advance(); }
+function advance(){
   if (!ep || ep.phase === 'learned') ep = newEp();
   if (ep.phase === 'state'){
     const c = ep.cur;
@@ -193,7 +203,7 @@ function silentEp(){
   }
   learn({steps, reward:reward(path)});
 }
-function forced(path){ ep = newEp(path); stepEp(); }
+function forced(path){ snap(); ep = newEp(path); advance(); }
 
 // ---------- render ----------
 const $ = id => document.getElementById(id);
@@ -279,13 +289,14 @@ function renderStats(){
   const line = pts.map((v,i)=>`${(i/(n-1))*(W-10)+5},${H-6-v*(H-12)}`).join(' ');
   $('curve').innerHTML = `<line x1="5" x2="${W-5}" y1="6" y2="6" stroke="var(--line)" stroke-dasharray="3"/><line x1="5" x2="${W-5}" y1="${H-6}" y2="${H-6}" stroke="var(--line)"/>${pts.length>1?`<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${line}"/>`:''}`;
 }
-function render(){ renderGraph(); renderPanel(); renderStats(); }
+function render(){ $('btnBack').disabled = !undo.length; renderGraph(); renderPanel(); renderStats(); }
 
 $('btnNext').onclick = stepEp;
 $('btnGood').onclick = () => forced(['an','python','binh','ml']);
 $('btnBad').onclick = () => forced(['an','python','chi','web']);
 $('btnReset').onclick = reset;
-$('btnTrain').onclick = () => { for (let i=0;i<100;i++) silentEp(); ep = null; render(); };
+$('btnBack').onclick = back;
+$('btnTrain').onclick = () => { snap(); for (let i=0;i<100;i++) silentEp(); ep = null; render(); };
 reset();
 </script>
 </body>
