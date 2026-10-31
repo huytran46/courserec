@@ -62,11 +62,11 @@ Tie-break: higher legacy score, then earlier beam index. S0 is kept if it alread
 | S3 concept | 18.59% | 26.08% | 26.08% | 4,825 (7.49%) | 0 |
 | SL shortest | 100% | 100% | 100% | 0 | 0 |
 
-- All selectors reach the binary pairwise ceiling of the beam.
+- All selectors reach the binary pairwise ceiling of the beam. The ceiling column counts every pair with at least one path having the property, including pairs where S0 already chose it (S3: 18.59% already + 7.49% newly gained = 26.08%), not only new alternatives. The 7.49% is a pair-level rate; the user-mean paired change below is +7.45 pp.
 - Paired change (per-user mean, selector minus S0, own target), user-level bootstrap over test users, seed 20240131, 2000 resamples, not training-seed variance: S1 +0.0001 [0.0000, 0.0002], S2 +0.0004 [0.0002, 0.0005], S3 +0.0745 [0.0724, 0.0766].
 - S0 pattern mix: `enroll_user` 80.86%, concept 18.59%, teacher 0.40%, school 0.14%.
 - S3 pattern mix: `enroll_user` 73.38%, concept 26.08%, teacher 0.40%, school 0.14%.
-- Pattern entropy (base 2, pattern = per-node `<relation>_<node_type>` sequence including self_loop): S0 0.745 bits (normalized 0.373, 4 patterns), S3 0.879 bits (normalized 0.439). S1 0.746, S2 0.748, SL 0.745.
+- Pattern entropy (base 2, pattern = per-node `<relation>_<node_type>` sequence including self_loop): S0 0.745 bits (normalized 0.373, 4 patterns), S3 0.879 bits (normalized 0.439). S1 0.746, S2 0.748, SL 0.745. Normalized entropy divides by log2 of the number of observed patterns. Every selector has 4 observed patterns, so all use the same denominator log2(4) = 2 and the numbers are comparable. This would not hold if a selector had a different pattern count.
 - Effective length is 3.0 for every path in every selector. No self-loops in this beam, so SL is degenerate.
 - Historical-item diversity (distinct per list / list size): S0 0.6855, S3 0.6848. Shared-entity diversity: S0 0.9981, S3 0.9984.
 - Selector runtime: S0 0.22 s, S1 0.61 s, S2 0.63 s, S3 1.20 s, SL 0.99 s.
@@ -75,16 +75,16 @@ Beam-wide (secondary, all candidate pairs, not topK explanation metrics): 175,53
 
 ## Interpretation
 
-- Concept is the only property with real headroom in the beam. Post-hoc selection lifts concept presence from 18.6% to 26.1% (ceiling) with zero ranking change and no pair getting worse. This is a strong cost-free post-hoc baseline for concept.
+- Concept is the only property with real headroom in the beam. Post-hoc selection lifts concept presence from 18.6% to 26.1% (ceiling) with zero ranking change and no pair losing the binary concept target. This is a post-hoc baseline that needs no retraining and does not change the ranking (the selector itself costs about 1.2 s). It does not make every property better: historical-item diversity drops slightly (0.6855 to 0.6848).
 - Teacher and school are an availability bottleneck: almost no beam path contains them (0.36% and 0.16% of pairs). Nothing to select, so post-hoc selection cannot move them. Reward shaping could find paths outside the beam, so this does not show shaping is useless.
-- High post-hoc headroom on concept means the baseline for that property is strong. It does not show the reward has no value, because the 74% of pairs without a concept alternative stay out of reach of selection.
+- High post-hoc headroom on concept means the baseline for that property is strong. It does not show the reward has no value, because 73.92% of pairs have no concept path at all in the beam of the same pair, and selection cannot reach them.
 - Effective length and self-loop rate carry no signal on this beam (all paths have length 3).
 
 ## Relation to Spike A (from review note, not re-verified in this spike)
 
 - This spike uses 30-epoch TransE embeddings (`embeddings` sha256 above). Per the review note, Spike A used older embeddings of unclear epoch.
 - Pruning depends on embeddings, so Spike A's pruned-reachability numbers should be rerun with these full embeddings before the graph-vs-beam gap is attributed to policy or search.
-- Spike A's full-graph part remains usable, because the KG and train/test splits match (kg, train_label, test_label hashes above; I did not compare against Spike A's own hashes).
+- Spike A's full-graph results can be reused once its KG and label hashes are confirmed to match this run's (kg, train_label, test_label hashes above; not yet compared against Spike A's own hashes). Its pruned results must be rerun with the full embeddings.
 
 ## Next steps (proposed, not started)
 
