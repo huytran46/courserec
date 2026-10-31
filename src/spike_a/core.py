@@ -150,9 +150,11 @@ class PrunedActions(FullActions):
         self.env_calls = 0
         self.fast_calls = 0
         self._cache = {}
+        self._set_cache = {}
 
     def reset(self):
         self._cache = {}
+        self._set_cache = {}
 
     def _n_candidates(self, path, visited):
         _, ctype, cid = path[-1]
@@ -195,7 +197,11 @@ class PrunedActions(FullActions):
         return [(r, n) for r, ty, n in self.kept_list(path, visited) if ty == "item" and n in targets]
 
     def kept_set(self, path, visited):
-        return {(r, n) for r, _, n in self.kept_list(path, visited)}
+        key = tuple(path)
+        s = self._set_cache.get(key)
+        if s is None:
+            s = self._set_cache[key] = {(r, n) for r, _, n in self.kept_list(path, visited)}
+        return s
 
     def keeps(self, path, visited, rel, ntype, nid):
         _, ctype, cid = path[-1]
