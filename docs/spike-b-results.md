@@ -1,6 +1,36 @@
 # Spike B: same-item post-hoc path selection
 
-**Status: full-epoch run, train path length 3 / eval path length 3 ("3/3"). TransE 30, agent 50, default config values except `tmp_dir`, seed 23, single training run.** This is the predefined sensitivity baseline. The primary protocol (train 4 / eval 3) has NOT been run. An earlier 2-epoch smoke run is kept in the appendix as a feasibility check only.
+**Status: two full-epoch runs, both TransE 30 (same embeddings), agent 50 epochs, seed 23, one training run each.** Primary protocol: train path length 4 / eval path length 3 ("4/3", next section). Sensitivity baseline: train 3 / eval 3 ("3/3", the rest of this document, unless a section says 4/3). An earlier 2-epoch smoke run is kept in the appendix as a feasibility check only.
+
+## Primary protocol 4/3: results
+
+Config: `effective_config.json` of the 3/3 run with `TRAIN_AGENT.max_path_len = 4`, `TEST_AGENT.max_path_len = 3`, `topk` 25/5/1, `tmp_dir = tmp/mooc_train4_eval3`. TransE was not retrained: `dataset.pkl`, `kg.pkl`, labels and `transe_embed.pkl` were copied byte for byte from the 3/3 run and their sha256 verified before training. Pipeline: upstream clone at `7348dc2`, `train_agent` then `test_agent` on a Colab T4 (train 15:17 to 16:07 UTC, test to 16:15 UTC). Output on Drive: `MyDrive/courserec/tmp/mooc_train4_eval3/` (`train_agent/`, `evaluation/UPGPR_train4_eval3/run_0.json`, `effective_config.json`, `spike_b_t4e3/`).
+
+sha256: beam `5e6bae1ef937d33ca38b96427e75b832add7f5d1a7c29911b6cbf3a0716e990f` (393,920 paths), agent checkpoint epoch 50 `1dcc2f85d99bc5117c6c51ec7055c39f0ea7c475f4e9b35d14fac1ed46e3e460`, config `bb18f328c10b1b3e3ec39b73f9ae49b641d0025dc556f3d0dfac3a6e5b1b42e9`. Embeddings, kg, train_label and test_label hashes are identical to the 3/3 run (embeddings `5769c715...877e787`).
+
+Checks: reconstructed metrics match `run_0.json` exactly (abs diff 0.0); ordered item IDs and all ranking metrics unchanged for all 5 selectors (diff 0.0); all 322,295 selected rows (64,459 pairs x 5) re-verified from the output file against the beam pickle as paths of the same (user, item) pair, 0 violations; probs shifted (min 1.0, max 2.0), 0 type or id errors.
+
+| | 3/3 | 4/3 (primary) |
+|---|---|---|
+| NDCG all-user (%) | 18.4063 | 19.1470 |
+| Recall / HR / Precision (%) | 24.7196 / 41.3862 / 4.7973 | 26.1315 / 43.1228 / 5.0646 |
+| NDCG valid-only (%) | 18.0772 (6,230 users) | 18.7782 (6,249 users) |
+| Users with fewer than 10 items | 277 | 258 |
+| Top-K pairs | 64,461 | 64,459 |
+| S0 pattern mix: enroll_user / concept / teacher / school | 80.86% / 18.59% / 0.40% / 0.14% | 91.87% / 8.01% / 0.12% / 0.01% |
+| S0 counts: concept / teacher / school | 11,986 / 261 / 93 | 5,160 / 77 / 5 |
+| S3 concept: S0 already, ceiling = achieved | 18.59%, 26.08% | 8.01%, 13.08% (8,434 pairs) |
+| S3 pairs gained (pair-level) | 4,825 (7.49 pp) | 3,274 (5.08 pp) |
+| S3 user-mean paired change, 95% CI | +7.45 pp [7.24, 7.66] | +5.04 pp [4.86, 5.23] |
+| Pattern entropy S0 to S3 (bits, base 2) | 0.745 to 0.879 | 0.417 to 0.574 |
+| Candidate pairs with any concept path (beam-wide) | 29.3% | 15.9% |
+| Candidate pairs with any teacher / school path | 0.36% / 0.16% | 0.12% / 0.011% |
+
+4/3 details: S1 teacher 8 pairs changed (5 enroll_user, 2 concept, 1 school to teacher; teacher 77 to 85 [derived]); S2 school 1 pair changed (concept to school; school 5 to 6 [derived]); S3 3,274 pairs, all enroll_user to concept, teacher (77) and school (5) unchanged; SL 0 changed. Every selector reaches its ceiling. Effective length is 3.0 for every path and there are no self-loops, even though training used 4 hops, so SL is still degenerate. Historical-item diversity S0 0.6844, S3 0.6861; shared-entity diversity S0 0.9898, S3 0.9903. Selector runtime S3 0.88 s. Normalized entropy uses the same denominator log2(4) = 2 for all selectors (4 observed patterns).
+
+Reading: the 4/3 policy ranks better (NDCG +0.74 over 3/3 in this single seed, not tested for significance) but its 3-hop beam is more dominated by co-learner paths, so concept headroom for post-hoc selection roughly halves (ceiling 13.1% vs 26.1%) and teacher and school are almost absent. The post-hoc concept lift stays clearly above zero (+5.0 pp) with unchanged ranking, so S3 remains the concept baseline for shaping comparisons. Teacher and school are still an availability bottleneck of the beam, which says nothing about whether shaping can find them. The paper's 4-hop NDCG refers to eval at 4 hops, so it is not comparable with this 4/3 number. The top-K cohorts of 3/3 and 4/3 differ (64,461 vs 64,459 pairs, different items), so counts between the two runs are not pair-matched.
+
+Reproduce 4/3: same tool and command as below with `--config tmp/mooc_train4_eval3/effective_config.json`, `--path_file tmp/mooc_train4_eval3/train_agent/policy_paths_epoch_50.pkl`, `--out_dir tmp/mooc_train4_eval3/spike_b_t4e3`, `--logs_json tmp/mooc_train4_eval3/evaluation/UPGPR_train4_eval3/run_0.json`. Same limits as below: one seed, `id_map_files` null and manifest `commit` null in the manifest.
 
 ## Question
 
@@ -90,7 +120,7 @@ Beam-wide (secondary, all candidate pairs, not topK explanation metrics): 175,53
 ## Next steps (proposed, not started)
 
 1. Rerun A-pruned with the full embeddings, and measure alternatives for exactly the same top-K pairs as this spike so both share one denominator.
-2. Run the primary protocol (train 4 / eval 3) before choosing the protocol for shaping variants.
+2. Primary protocol (train 4 / eval 3): done, see the 4/3 section at the top. Decide the protocol for shaping variants from it.
 3. Then a small reward-only spike E: does shaping find paths outside the beam, and does it give a benefit beyond selector S3?
 4. Teacher and school are worthwhile stress-test candidates, but recheck their reachability after full-embedding pruning first. Keep S3 post-hoc as the concept baseline.
 
