@@ -1,6 +1,6 @@
 # Spike B: same-item post-hoc path selection
 
-**Status: full-epoch run (TransE 30, agent 50, config values, seed 23, single training run).** An earlier 2-epoch smoke run is kept in the appendix as a feasibility check only.
+**Status: full-epoch run, train path length 3 / eval path length 3 ("3/3"). TransE 30, agent 50, default config values except `tmp_dir`, seed 23, single training run.** This is the predefined sensitivity baseline. The primary protocol (train 4 / eval 3) has NOT been run. An earlier 2-epoch smoke run is kept in the appendix as a feasibility check only.
 
 ## Question
 
@@ -35,7 +35,7 @@ sha256: beam `7fe3509a...077232b06`, embeddings `5769c715...ab877e787`, checkpoi
 - Valid-only (6,230 users with at least 10 items, %): NDCG 18.0772, Recall 24.5346, HR 41.3804, Precision 4.7448.
 - 277 users have fewer than 10 items. They stay in the all-user report.
 - Probs audit: shifted, min 1.0, max 2.0. ID audit: 0 type inconsistencies, 0 out-of-range ids over 393,917 paths.
-- Paper reference (Xuetang, UPGPR 3 hop): NDCG 18.43. This run is 18.41 (all-user), a close reproduction. Only one seed was run, so no variance estimate.
+- Paper reference (Xuetang, UPGPR 3 hop): NDCG 18.43. This run is 18.41 (all-user). Read this as a result near paper level for one seed. It is not a conclusion that the paper is fully reproduced (single seed, no variance estimate, protocol 3/3 only).
 
 ## Ranking invariants
 
@@ -79,6 +79,19 @@ Beam-wide (secondary, all candidate pairs, not topK explanation metrics): 175,53
 - Teacher and school are an availability bottleneck: almost no beam path contains them (0.36% and 0.16% of pairs). Nothing to select, so post-hoc selection cannot move them. Reward shaping could find paths outside the beam, so this does not show shaping is useless.
 - High post-hoc headroom on concept means the baseline for that property is strong. It does not show the reward has no value, because the 74% of pairs without a concept alternative stay out of reach of selection.
 - Effective length and self-loop rate carry no signal on this beam (all paths have length 3).
+
+## Relation to Spike A (from review note, not re-verified in this spike)
+
+- This spike uses 30-epoch TransE embeddings (`embeddings` sha256 above). Per the review note, Spike A used older embeddings of unclear epoch.
+- Pruning depends on embeddings, so Spike A's pruned-reachability numbers should be rerun with these full embeddings before the graph-vs-beam gap is attributed to policy or search.
+- Spike A's full-graph part remains usable, because the KG and train/test splits match (kg, train_label, test_label hashes above; I did not compare against Spike A's own hashes).
+
+## Next steps (proposed, not started)
+
+1. Rerun A-pruned with the full embeddings, and measure alternatives for exactly the same top-K pairs as this spike so both share one denominator.
+2. Run the primary protocol (train 4 / eval 3) before choosing the protocol for shaping variants.
+3. Then a small reward-only spike E: does shaping find paths outside the beam, and does it give a benefit beyond selector S3?
+4. Teacher and school are worthwhile stress-test candidates, but recheck their reachability after full-embedding pruning first. Keep S3 post-hoc as the concept baseline.
 
 ## Limits
 
