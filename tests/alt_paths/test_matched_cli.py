@@ -76,6 +76,16 @@ def rows(out, name):
     return list(csv.DictReader(open(os.path.join(out, name))))
 
 
+def test_tool_identity_ignores_hidden_files(tmp_path):
+    (tmp_path / "a.py").write_text("x = 1\n")
+    (tmp_path / "._a.py").write_text("macOS resource fork junk")
+    (tmp_path / ".hidden.py").write_text("y = 2\n")
+    ident = matched_cli.tool_identity(str(tmp_path))
+    assert list(ident["files_sha256"]) == ["a.py"]
+    (tmp_path / "._b.py").write_text("more junk")
+    assert matched_cli.tool_identity(str(tmp_path))["bundle_sha256"] == ident["bundle_sha256"]
+
+
 def test_matched_end_to_end_tiny(tmp_path):
     art, bdir, cfg, beam, _ = make_world(tmp_path)
     out = tmp_path / "out"

@@ -103,9 +103,10 @@ def embedding_ckpt_match(embeds, ckpt_dir, kg_args):
     return {"status": "checked", "checkpoints_checked": len(checked), "matching_epochs": sorted(match)}
 
 
-def tool_identity():
-    d = _HERE
-    files = {f: sha(os.path.join(d, f)) for f in sorted(os.listdir(d)) if f.endswith(".py")}
+def tool_identity(d=_HERE):
+    # hidden files (e.g. macOS '._*.py' resource forks from tar) are not part of the tool
+    files = {f: sha(os.path.join(d, f)) for f in sorted(os.listdir(d))
+             if f.endswith(".py") and not f.startswith(".")}
     bundle = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
     return {"files_sha256": files, "bundle_sha256": bundle}
 
