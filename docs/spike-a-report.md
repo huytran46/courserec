@@ -64,4 +64,4 @@ All nine reference counts from Spike B's own `selected_paths.jsonl` (concept 16,
 
 ## Next
 
-Spike B was asked (via message) to run the primary protocol (train 4 / eval 3). Spike A can rerun its matched analysis on that run with the same command. Then spike E (reward-only): does shaping find paths outside the beam, and does it beat post-hoc S3?
+Primary run (train 4 / eval 3) done: see `docs/spike-a-matched-b-train4-eval3-results.md` (all nine B counts match; beam concept 8,434, S0 5,160). Then spike E (reward-only): does shaping find paths outside the beam, and does it beat post-hoc S3?
