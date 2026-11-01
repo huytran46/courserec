@@ -65,7 +65,7 @@ def audit(tmp_dir, ref_dirs=()):
     return out
 
 
-def witness(cfg_path, max_users=None):
+def witness(cfg_path, max_users=None, do_eff4=False):
     from easydict import EasyDict as edict
     from kg_env import BatchKGEnvironment
     cfg = edict(json.load(open(cfg_path)))
@@ -110,7 +110,7 @@ def witness(cfg_path, max_users=None):
                                              for k in range(2, len(padded) + 1)],
                                          "concept_bonus_raw": env.concept_bonus(padded),
                                          "binary_train_reward": env.binary_train_reward(padded)}
-                    for r4, n4 in env._get_actions(p3, False):
+                    for r4, n4 in (env._get_actions(p3, False) if do_eff4 else []):
                         if r4 == sl:
                             continue
                         t4 = cfg.KG_ARGS.kg_relation[t3][r4]
