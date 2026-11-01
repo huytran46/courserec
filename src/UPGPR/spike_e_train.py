@@ -46,6 +46,18 @@ def sd_hash(sd):
     return h.hexdigest()
 
 
+def embed_hash(env):
+    """sha256 over the embedding arrays the env holds (tensor-level, sorted keys). Embeddings are numpy,
+    outside the torch graph/optimizer; the before/after hash proves they were not touched."""
+    h = hashlib.sha256()
+    for k in sorted(env.embeds.keys()):
+        v = env.embeds[k]
+        arr = v[0] if isinstance(v, tuple) else v
+        a = np.ascontiguousarray(np.asarray(arr, dtype=np.float64))
+        h.update(k.encode()); h.update(str(a.shape).encode()); h.update(a.tobytes())
+    return h.hexdigest()
+
+
 def file_sha256(p):
     h = hashlib.sha256()
     with open(p, "rb") as f:
@@ -73,9 +85,11 @@ def _new_model(env, args, device):
                        modified_policy=args.modified_policy, embed_size=env.embed_size).to(device)
 
 
-def make_init(cfg_path, out_path):
+def make_init(cfg_path, out_path, seed=None):
     cfg = _load_cfg(cfg_path)
     args = cfg.TRAIN_AGENT
+    if seed is not None:
+        args.seed = seed
     set_random_seed(args.seed)
     env = _build(cfg, 0.0)
     model = _new_model(env, args, "cpu")
@@ -105,10 +119,21 @@ def _terminal_stats(env, base_step, shaped_step):
             "eff_len_hist": np.bincount(eff.astype(int), minlength=6).tolist()}
 
 
-def train_branch(cfg_path, branch, lam, init_path, out_dir, epochs=5, resume=False):
+def log_bonus_share(acc, lam):
+    """lambda*bonus / (base + lambda*bonus) over the epoch's episodes (None if total return is 0)."""
+    b = lam * acc["bonus_raw_sum"]
+    tot = acc["base_sum"] + b
+    return (b / tot) if tot else None
+
+
+def train_branch(cfg_path, branch, lam, init_path, out_dir, epochs=5, resume=False, seed=None, save_every=1,
+                 max_users=None):
+    import resource
     cfg = _load_cfg(cfg_path)
     args = cfg.TRAIN_AGENT
-    args.epochs = epochs  # lr-decay horizon = the epochs actually run (same as `train_agent` with epochs=5)
+    if seed is not None:
+        args.seed = seed
+    args.epochs = epochs  # lr-decay horizon = the epochs actually run (M5: 50, fixed from epoch 1)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     args.device = device
     os.makedirs(os.path.join(out_dir, "ckpt"), exist_ok=True)
@@ -116,11 +141,14 @@ def train_branch(cfg_path, branch, lam, init_path, out_dir, epochs=5, resume=Fal
     set_random_seed(args.seed)
     env = _build(cfg, lam)
     uids = list(env.kg("user").keys())
+    if max_users:  # smoke only: subset of users, never used for official runs
+        uids = uids[:max_users]
     dataloader = ACDataLoader(uids, args.batch_size)
     model = _new_model(env, args, device)  # consumes torch RNG exactly as in baseline
     init_sd = torch.load(init_path, map_location="cpu")
     model.load_state_dict(init_sd)
     init_hash = sd_hash(model.state_dict())
+    emb_hash_before = embed_hash(env)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     model.train()
 
@@ -138,6 +166,8 @@ def train_branch(cfg_path, branch, lam, init_path, out_dir, epochs=5, resume=Fal
         print("RESUMED at epoch", start_epoch)
 
     meta = {"branch": branch, "lambda": lam, "init_sha256": init_hash, "epochs": epochs, "seed": args.seed,
+            "embeddings_sha256_before": emb_hash_before, "save_every": save_every,
+            "lr_schedule": "linear decay max(1e-4, 1 - step/(epochs*n_users/batch)) with epochs=%d from epoch 1" % epochs,
             "device": str(device), "torch": torch.__version__, "numpy": np.__version__,
             "note": "trajectories and RNG consumption diverge between branches once policies diverge"}
     meta["effective_train_agent_config"] = {k: (str(v) if k == "device" else v) for k, v in args.items()}
@@ -204,11 +234,14 @@ def train_branch(cfg_path, branch, lam, init_path, out_dir, epochs=5, resume=Fal
             "mean_loss": float(np.mean(acc["loss"])), "mean_ploss": float(np.mean(acc["ploss"])),
             "mean_vloss": float(np.mean(acc["vloss"])), "mean_neg_entropy_loss": float(np.mean(acc["ent"])),
             "nonfinite_loss_count": acc["nonfinite"], "early_bonus_violations": acc["early_bonus_violations"],
-            "wall_time_s": time.time() - t0,
+            "wall_time_s": time.time() - t0, "lr_end": lr,
+            "bonus_share_of_total_return": (log_bonus_share(acc, lam)),
+            "max_rss_mb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0,
         }
         logs.append(log)
         sd = {k: v.detach().cpu() for k, v in model.state_dict().items()}
-        torch.save(sd, os.path.join(out_dir, "ckpt", "epoch_{}.pt".format(epoch)))
+        if epoch % save_every == 0 or epoch == epochs:
+            torch.save(sd, os.path.join(out_dir, "ckpt", "epoch_{}.pt".format(epoch)))
         json.dump(logs, open(os.path.join(out_dir, "train_log.json"), "w"), indent=2)
         torch.save({"model": sd, "opt": optimizer.state_dict(), "py_rng": random.getstate(),
                     "np_rng": np.random.get_state(), "torch_rng": torch.get_rng_state(),
@@ -216,23 +249,29 @@ def train_branch(cfg_path, branch, lam, init_path, out_dir, epochs=5, resume=Fal
                     "epoch": epoch, "step": step, "logs": logs}, state_file)
         print(json.dumps({k: log[k] for k in ("epoch", "mean_base_return_per_episode", "mean_bonus_raw_per_episode",
                                                "frac_terminal_B1", "frac_terminal_positive_endpoint", "wall_time_s")}))
-    hashes = {"init_sha256": init_hash,
-              **{"epoch_{}_sha256".format(e): sd_hash(torch.load(os.path.join(out_dir, "ckpt", "epoch_{}.pt".format(e))))
-                 for e in range(1, epochs + 1)}}
+    emb_hash_after = embed_hash(env)
+    assert emb_hash_after == emb_hash_before, "embeddings changed during training"
+    hashes = {"init_sha256": init_hash, "embeddings_sha256_before": emb_hash_before,
+              "embeddings_sha256_after": emb_hash_after, "embeddings_unchanged": True}
+    for e in range(1, epochs + 1):
+        p = os.path.join(out_dir, "ckpt", "epoch_{}.pt".format(e))
+        if os.path.isfile(p):
+            hashes["epoch_{}_sha256".format(e)] = sd_hash(torch.load(p))
     json.dump(hashes, open(os.path.join(out_dir, "checkpoint_hashes.json"), "w"), indent=2)
     return logs
 
 
-def beam(cfg_path, ckpt, path_file, topk=None):
-    """Unchanged baseline beam search on the TEST_AGENT config (train4/eval3, topk [25,5,1])."""
+def beam(cfg_path, ckpt, path_file, topk=None, data="test", seed=None):
+    """Unchanged baseline beam search on the TEST_AGENT config (train4/eval3, topk [25,5,1]).
+    data in {"test","validation"} selects which split's users the beam is run for."""
     from test_agent import predict_paths
     cfg = _load_cfg(cfg_path)
     args = cfg.TEST_AGENT
     args.device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
     args.use_wandb = False
-    set_random_seed(args.seed)
+    set_random_seed(args.seed if seed is None else seed)
     t0 = time.time()
-    predict_paths(ckpt, path_file, args, cfg.KG_ARGS)
+    predict_paths(ckpt, path_file, args, cfg.KG_ARGS, data=data)
     return time.time() - t0
 
 
@@ -240,21 +279,24 @@ def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("make-init"); a.add_argument("--config", required=True); a.add_argument("--out", required=True)
+    a.add_argument("--seed", type=int, default=None)
     b = sub.add_parser("train")
     b.add_argument("--config", required=True); b.add_argument("--branch", required=True)
     b.add_argument("--lam", type=float, required=True); b.add_argument("--init", required=True)
     b.add_argument("--out_dir", required=True); b.add_argument("--epochs", type=int, default=5)
-    b.add_argument("--resume", action="store_true")
-    c = sub.add_parser("beam")
+    b.add_argument("--resume", action="store_true"); b.add_argument("--seed", type=int, default=None)
+    b.add_argument("--save_every", type=int, default=1); b.add_argument("--max_users", type=int, default=None)
+    c =sub.add_parser("beam")
     c.add_argument("--config", required=True); c.add_argument("--ckpt", required=True)
-    c.add_argument("--path_file", required=True)
+    c.add_argument("--path_file", required=True); c.add_argument("--data", default="test")
+    c.add_argument("--seed", type=int, default=None)
     r = ap.parse_args()
     if r.cmd == "make-init":
-        make_init(r.config, r.out)
+        make_init(r.config, r.out, r.seed)
     elif r.cmd == "train":
-        train_branch(r.config, r.branch, r.lam, r.init, r.out_dir, r.epochs, r.resume)
+        train_branch(r.config, r.branch, r.lam, r.init, r.out_dir, r.epochs, r.resume, r.seed, r.save_every, r.max_users)
     else:
-        print("beam seconds", beam(r.config, r.ckpt, r.path_file))
+        print("beam seconds", beam(r.config, r.ckpt, r.path_file, data=r.data, seed=r.seed))
 
 
 if __name__ == "__main__":

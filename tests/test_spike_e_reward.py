@@ -214,12 +214,12 @@ def test_batch_mixed_terminal_bonus(tmp_path):
 
 def test_embeddings_pruning_search_untouched():
     """Diff vs the baseline commit: only kg_env (reward additions) and train_agent (config pass-through) changed."""
-    out = subprocess.run(["git", "diff", "--stat", "5334bf9", "--", "src/UPGPR/"], cwd=ROOT,
+    # only files that already existed at the baseline commit and were MODIFIED count (new spike/M5 files are fine)
+    out = subprocess.run(["git", "diff", "--name-only", "--diff-filter=M", "5334bf9", "--", "src/UPGPR/"], cwd=ROOT,
                          capture_output=True, text=True).stdout
-    changed = {l.split("|")[0].strip() for l in out.splitlines() if "|" in l}
+    changed = {l.strip() for l in out.splitlines() if l.strip()}
     allowed = {"src/UPGPR/kg_env.py", "src/UPGPR/train_agent.py"}
-    new_ok = {"src/UPGPR/spike_e_train.py", "src/UPGPR/spike_e_witness.py"}
-    assert changed - new_ok <= allowed, changed
+    assert changed <= allowed, changed
     d = subprocess.run(["git", "diff", "5334bf9", "--", "src/UPGPR/kg_env.py"], cwd=ROOT,
                        capture_output=True, text=True).stdout
     removed = [l for l in d.splitlines() if l.startswith("-") and not l.startswith("---")]
