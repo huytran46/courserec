@@ -50,7 +50,8 @@ def branch_stats(b):
     n_pos = hit = 0
     per_user = []
     for u, pos in test.items():
-        pos_new = [p for p in pos if p not in set(b["train"].get(u, []))]
+        tr = set(b["train"].get(u, []))
+        pos_new = [p for p in pos if p not in tr]
         h = sum(1 for p in pos_new if p in cands.get(u, {}))
         n_pos += len(pos_new); hit += h
         if pos_new:
@@ -75,8 +76,6 @@ def cat(c_has, s_has):
 
 def same_pair(ctl, shp, root):
     rows = []
-    cohorts = {}
-    # all common candidate pairs
     common, top_i, top_u = {}, {}, {}
     users = sorted(set(ctl["pp"]) & set(shp["pp"]))
     for u in users:
