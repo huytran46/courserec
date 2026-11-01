@@ -52,6 +52,7 @@ def train(args, kg_args):
         state_history=args.state_history,
         reward_function=args.reward,
         use_pattern=args.use_pattern,
+        concept_bonus_lambda=args.get("concept_bonus_lambda", 0.0),
     )
     uids = list(env.kg("user").keys())
     dataloader = ACDataLoader(uids, args.batch_size)
