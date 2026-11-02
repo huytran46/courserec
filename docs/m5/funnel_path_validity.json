@@ -1,0 +1,8 @@
+{
+ "23_control": {"paths": 141569, "concept_paths": 13538, "bad_full": 0, "bad_pruned": 0, "sel_paths": 129022, "sel_bad_pruned": 0, "sel_not_in_cands": 0, "pairs": 64511},
+ "23_shaped": {"paths": 148216, "concept_paths": 62841, "bad_full": 0, "bad_pruned": 0, "sel_paths": 128618, "sel_bad_pruned": 0, "sel_not_in_cands": 0, "pairs": 64309},
+ "24_control": {"paths": 135922, "concept_paths": 19665, "bad_full": 0, "bad_pruned": 0, "sel_paths": 129214, "sel_bad_pruned": 0, "sel_not_in_cands": 0, "pairs": 64607},
+ "24_shaped": {"paths": 148891, "concept_paths": 61585, "bad_full": 0, "bad_pruned": 0, "sel_paths": 128662, "sel_bad_pruned": 0, "sel_not_in_cands": 0, "pairs": 64331},
+ "25_control": {"paths": 144027, "concept_paths": 17769, "bad_full": 0, "bad_pruned": 0, "sel_paths": 129160, "sel_bad_pruned": 0, "sel_not_in_cands": 0, "pairs": 64580},
+ "25_shaped": {"paths": 141169, "concept_paths": 49861, "bad_full": 0, "bad_pruned": 0, "sel_paths": 128654, "sel_bad_pruned": 0, "sel_not_in_cands": 0, "pairs": 64327}
+}
