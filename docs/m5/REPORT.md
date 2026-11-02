@@ -42,8 +42,8 @@ Paired differences (per seed 23/24/25, then mean +- SD):
 | after pruning (250) | 97.9% | 97.9% |
 | in M5 beam (= S3 selects concept) | 24.3% | 52.2% |
 | S0 selected concept | 14.0% | 42.6% |
-Loss buckets (S0, share of common covered): no concept path in graph 0.5%; pruning loss 1.6%; beam miss 73.6% (control) vs 45.7% (shaped); selector miss (concept in beam, S0 not) 10.3% vs 9.6%. Graph and pruning are identical across arms by construction; the whole arm difference sits in the beam stage. Per-seed values and counts: `tables/funnel.json` (all / common / only-one-arm cohorts, per arm).
-**Only-one-arm pairs (covered part), concept in beam:** control-only 13.0 / 17.6 / 16.7%, shaped-only 49.6 / 52.3 / 46.5%. Items unique to the shaped arm are mostly concept-reachable in the beam, items unique to control are not, so part of the all-pair gain is item mix; on common pairs the beam availability gain is +27.9 pp (covered) vs +29.6 pp on all top-10 slots.
+Loss buckets (S0, share of common covered): no concept path in graph 0.5%; pruning loss 1.6%; beam miss 73.6% (control) vs 45.7% (shaped); selector miss (concept in beam, S0 not) 10.3% vs 9.6%. Graph and pruning are identical across arms by construction, so on this cohort the arm difference sits in the beam stage. This bottleneck statement holds only for the common covered cohort (39-40% of each arm's top-10 pairs); it is not measured for uncovered pairs or for items returned by only one arm. Per-seed values and counts: `tables/funnel.json` (all / common / only-one-arm cohorts, per arm).
+**Only-one-arm pairs (covered part), concept in beam:** control-only 13.0 / 17.6 / 16.7%, shaped-only 49.6 / 52.3 / 46.5%. Items unique to the shaped arm are more often concept-reachable in the beam than items unique to control. The all-output availability gain (+29.6 pp over all 65,070 slots per seed) therefore includes item mix, missing slots and a different denominator; on common covered pairs the gain is +27.9 pp (24.3% to 52.2%). The 1.7 pp difference is not attributed to a single cause.
 **Consistency checks (0 violations everywhere):**
 - Pair level (3 seeds x 2 arms, all top-10 pairs): selected S0 concept in beam 0 violations; S3 concept == beam concept 0 violations; beam concept pair with pruned_concept=0 or full_concept=0: 0 (covered pairs).
 - Path level, using A's `path_accepted` (full and pruned `PrunedActions` from the real `_get_actions`) on every beam path of every top-10 pair, deduplicated per user (141k / 148k, 136k / 149k, 144k / 141k paths for control / shaped seeds 23/24/25) and on all S0/S3 selected paths (about 129k per arm): 0 rejected by full, 0 rejected by pruned, 0 selected paths absent from the pair's beam candidates. File `tables/funnel_path_validity.json` (also `docs/m5/funnel_path_validity.json`).
@@ -56,7 +56,13 @@ Loss buckets (S0, share of common covered): no concept path in graph 0.5%; pruni
 | Total shaped+S3 vs control+S0 | +35.6 | +40.8 / +32.9 / +33.1 |
 | Selector slack remaining under shaped (S3 - S0) | 5.8 +- 0.7 | 6.3 / 5.0 / 6.0 |
 | Interaction (shaped slack - control slack) | -0.2 +- 0.6 | +0.4 / -0.4 / -0.7 |
-Reading: about 83% of the total gain is beam availability (reward moves concept paths into the beam, mostly where control's beam misses them; graph and pruning are not the bottleneck), about 17% is the selector (re-picking the path for the same item, independent of reward, same size under both policies). The shaped S0 vs control S0 gain (+29.8 pp) equals availability gain minus the interaction, i.e. the shaped policy also ranks its concept paths first, but the S3 ceiling is the beam. The selector cannot create availability: even under shaped, 49.0% of top-10 slots (100 - 51.0%) have no concept path in the beam although the pruned graph has one for ~98% of covered pairs. n=3, no bootstrap, shared embeddings (limits below).
+Reading: 83/17 is an arithmetic decomposition along one comparison path (control+S0 -> control+S3 -> shaped+S3: selector +6.0, then reward-driven availability +29.6, total +35.6), not a causal share of a mechanism. The other order (control+S0 -> shaped+S0 +29.8, then selector at shaped +5.8) gives 84/16; with interaction -0.2 pp the split is stable to about 1 pp, but it depends on the path chosen and on n=3 seeds. The selector re-picks the path for the same returned item and cannot add availability: S3 concept@10 is the share of the 65,070 slots whose returned pair has a concept path in the beam, with missing slots counted as no concept.
+**Slot accounting (per-user CSVs, `tables/slot_reconciliation.json`; 6,507 users x 10 = 65,070 slots per seed):**
+| arm / seed 23, 24, 25 | returned slots | missing slots | users with list <10 | S3 concept slots | returned non-concept slots |
+|---|---|---|---|---|---|
+| control | 64,511 / 64,607 / 64,580 | 559 / 463 / 490 | 247 / 190 / 204 | 11,428 / 15,829 / 14,534 | 53,083 / 48,778 / 50,046 |
+| shaped | 64,309 / 64,331 / 64,327 | 761 / 739 / 743 | 304 / 303 / 305 | 34,148 / 33,692 / 31,682 | 30,161 / 30,639 / 32,645 |
+Users with a short list and missing slots are different units (no user has an empty list; missing slots = sum over short users of 10 - n_items, asserted). Returned slots equal the funnel pair counts (asserted). The 49.0% of shaped slots without a concept explanation (mean over seeds 49.02%) is 1.15% missing slots plus 47.87% returned non-concept slots (per seed 1.17+46.35, 1.14+47.09, 1.14+50.17); for control 78.6% = 0.77% missing plus 77.82% returned non-concept. The "no concept path in the beam" statement therefore covers returned slots only; it does not claim the beam lacks a concept path for the missing slots.
 
 ## Matched cohorts (common (user,item) pairs; conditional on post-treatment beams, not a causal effect on the catalogue)
 Common pairs per seed (23/24/25): 65,656 / 68,134 / 71,533 (each arm has about 145k-165k beam pairs, so only ~40-45% of pairs are common). Among common pairs, shaped vs control concept availability:
@@ -84,7 +90,8 @@ Concept share control 11.8 / 19.1 / 15.8% -> shaped 46.7 / 47.3 / 43.2%; co-lear
 - `selection.json` (locked, read-only), `run_plan.json`, `manifests/`, `effective_config.json`, `inits/seed{23,24,25}.pt`
 - `development/seed23/lambda{0,1,5}/` and `final/seed{24,25}/lambda{0,5}/`: `ckpt/` (every 5 epochs + 50 + `state_latest.pt`), `train_log.json`, `train_meta.json`, `checkpoint_hashes.json`, `beam_validation/` (dev only), `beam_test/beam.pkl`, `eval_test.json`, `per_user_test_{S0,S3}.csv`
 - `summary.json`, `tables/arms_x_selectors.csv`, `tables/common_pair_cohorts.json`, `tables/funnel.json`, `tables/funnel_path_validity.json`, `phaseD.log`, `phaseF.log`
-- Funnel code: `m5_funnel.py` (+ `tests/test_m5_funnel.py`); path validity used Spike A's `core.py`/`matched.py` (`path_accepted`). The Drive `m5/code/src/UPGPR/m5_funnel.py` is the first version (no `summarize`); repo has the final one.
+- Funnel code (final, identical in repo and Drive `m5/code`, commit `af575c87`): `src/UPGPR/m5_funnel.py`, `src/UPGPR/m5_funnel_run.py`, `tests/test_m5_funnel.py`, `tests/test_m5_funnel_run.py`; `tables/slot_reconciliation.json`, `tables/funnel_summary.json`. Path validity runs Spike A's `core.py`/`matched.py`, copied to Drive `m5/code/spike_a_src/spike_a/`. sha256: m5_funnel.py `63e79cb0...32de9`, m5_funnel_run.py `5ffd7d37...30f1`, test_m5_funnel.py `8f60c02f...1c96`, test_m5_funnel_run.py `3fb74fe6...c81f`; Spike A core.py `0911553f...`, matched.py `002c78a3...`, artifacts.py `7e3bf04b...` (equal to its manifest). Earlier first-version `m5_funnel.py` (no `summarize`) on Drive was overwritten and the earlier ad hoc cell-run numbers were regenerated with this code (no numeric change).
+- Logs: `funnel_pack.log`, `path_validity_pack.log`.
 - Code: `m5_metrics.py`, `m5_run.py`, `spike_e_train.py`, `kg_env.py` (bonus), tests `tests/test_m5_metrics.py`, `tests/test_m5_run.py`, `tests/test_spike_e_reward.py`
 
 ## Reproduce
@@ -93,6 +100,14 @@ python src/UPGPR/m5_run.py D --root m5 --config m5/effective_config.json --spike
 python src/UPGPR/m5_run.py F --root m5 --config m5/effective_config.json
 python src/UPGPR/m5_run.py aggregate --root m5
 pytest tests -q
+```
+Funnel packaging (no training, no beam; reads saved beams, per-user CSVs and the Spike A cache; run from a dir with `src/UPGPR` on disk):
+```
+T=tmp/mooc_train4_eval3; A=spike_a/mooc_T3_full_embeds_matched_B_train4_eval3
+python src/UPGPR/m5_funnel_run.py funnel --root m5 --tmp_dir $T --cache_dir $A      # tables/funnel.json (asserts S0/S3 == M5 eval)
+python src/UPGPR/m5_funnel_run.py summarize --root m5                               # tables/funnel_summary.json
+python src/UPGPR/m5_funnel_run.py slots --root m5                                   # tables/slot_reconciliation.json
+python src/UPGPR/m5_funnel_run.py path_validity --root m5 --tmp_dir $T --spike_a_src m5/code/spike_a_src   # about 20 min
 ```
 
 ## M6 handoff
