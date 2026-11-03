@@ -52,7 +52,7 @@ Share of all slots does not sum to 100%: the missing slots (control 0.77%, shape
 | shaped | co_learner | 28,411 / 30,067 / 32,032 | 46.37 +- 2.79 | 46.90 +- 2.81 |
 | shaped | concept | 34,148 / 33,692 / 31,682 | 50.98 +- 2.02 | 51.57 +- 2.04 |
 | shaped | teacher / school | 604, 376, 414 / 1,146, 196, 199 | 0.71 / 0.79 | 0.72 / 0.80 |
-Under S3 the three-pattern order of control is the same as under S0 (co_learner first); shaped S3 has concept as the largest group (51.57% of explained), shaped S0 has co_learner (52.45%).
+Under S3 the group order of control is the same as under S0 (co_learner first); shaped S3 has concept as the largest group (51.57% of explained), shaped S0 has co_learner (52.45%).
 
 ## Consistency check vs M5 Concept@10 (passed, no discrepancy to explain)
 Concept group share of all slots equals the `concept_at10` stored in each `eval_test.json` for every seed/arm/selector (max abs difference 1.1e-16): control S0 15.42% (11.68 / 18.94 / 15.64), control S3 21.41%, shaped S0 45.20%, shaped S3 50.98%, matching 15.4 / 21.4 / 45.2 / 51.0 in `REPORT.md`. The count of paths containing `item_concept` anywhere equals the concept group (hybrid = 0).
