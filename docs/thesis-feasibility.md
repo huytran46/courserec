@@ -1,6 +1,8 @@
 # Thesis feasibility: findings, spikes, risks
 
-Cập nhật: 2026-10-29. Tổng hợp từ các session trước. Nguồn chi tiết: `docs/thesis-context.md`, `docs/init_spikes.md`, `docs/adr/0001-run-on-colab.md`.
+> **SUPERSEDED (2026-11-05).** Viết cho hướng reward shaping, đã bị thay bởi hướng chọn lại đường giải thích (xem `docs/adr/0002-pivot-to-alternative-path-selection.md` và `docs/thesis-context.md`). Giữ để tham khảo lịch sử. Còn dùng được: mục 2 (hệ thống chạy được), mục 3 các ý 1, 2, 6, 7, 8 (protocol "+1", `topk`, chi phí, Colab), mục 4 (chỉ định hướng, model 2 epoch). Không dùng: topic, RQ, rủi ro R_length, spike C-G (gắn với reward), mục 7-8 (việc tiếp theo).
+
+Cập nhật: 2026-10-29. Tổng hợp từ các session trước. Nguồn chi tiết: `docs/thesis-context.md`, `docs/spikes/init_spikes.md`, `docs/adr/0001-run-on-colab.md`.
 
 ## 1. Topic
 
@@ -96,7 +98,7 @@ Nhóm này khác nhóm "chạy được": mỗi spike trả lời một câu h�
 
 ## 8. Việc tiếp theo
 
-1. Ghi spike A-H vào `docs/init_spikes.md` (hoặc giữ file này làm nguồn chính).
+1. Ghi spike A-H vào `docs/spikes/init_spikes.md` (hoặc giữ file này làm nguồn chính).
 2. Spike A và B.
 3. Chốt ADR-0002, rồi chạy full UPGPR len 3 seed 23, so NDCG với 18.43 của paper.
 4. Đọc `kg_env.py` để thiết kế R_length / R_relation (spike D).

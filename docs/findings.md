@@ -27,7 +27,10 @@ Running log of verified facts about the repo, data, and thesis scope. Newest las
 - Any post-hoc alternative-path search with node/length caps can miss paths too. Agent's own path is always a valid fallback.
 - Check: full BFS (length <= L) on a sample of recommended pairs, report miss rate split by cause (node cap vs length).
 
-## Scope check: post-hoc path selection + LLM proposal
+## Scope check: post-hoc path selection + LLM proposal (superseded)
+
+Update 2026-11-05: the supervisor approved this direction (LLM sentence and survey optional, demo with template sentences). Now the thesis direction, see ADR 0002. The conflicts below applied to the old reward-shaping thesis and are kept as history; the limits that remain (circular evaluation, post-hoc faithfulness, rec metrics unchanged by construction) are listed in `docs/thesis-context.md`.
+
 
 - Conflicts with `docs/thesis-context.md` (reward shaping is the core claim). Top-10 unchanged means rec metrics equal baseline by construction.
 - Human-perception claims ("easier to understand") violate the wording rule.

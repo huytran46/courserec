@@ -2,7 +2,7 @@
 
 Status: DONE. Availability and headroom only. No claim on reward shaping, causal attribution to the policy, or learner usefulness. Counts do not measure controllability or learnability (that is spike E).
 
-Detail files: `docs/spike-a-matched-b-results.md` (full tables and provenance), `docs/spike-a-alt-path-reachability.md` (how to run). Raw outputs on Drive: `MyDrive/courserec/spike_a/mooc_T3_full_embeds_matched_B/` (final) and `.../mooc_T3/` (stage 1). Code: `src/spike_a/`, tests `tests/alt_paths/` (56 pass), local branch `worktree-spike-a-alt-path-reachability` at `3ae7c08` (not pushed; `origin` is upstream).
+Detail files: `docs/spikes/spike-a-matched-b-results.md` (full tables and provenance), `docs/spikes/spike-a-alt-path-reachability.md` (how to run). Raw outputs on Drive: `MyDrive/courserec/spike_a/mooc_T3_full_embeds_matched_B/` (final) and `.../mooc_T3/` (stage 1). Code: `src/spike_a/`, tests `tests/alt_paths/` (56 pass), local branch `worktree-spike-a-alt-path-reachability` at `3ae7c08` (not pushed; `origin` is upstream).
 
 ## Question
 
@@ -64,4 +64,4 @@ All nine reference counts from Spike B's own `selected_paths.jsonl` (concept 16,
 
 ## Next
 
-Primary run (train 4 / eval 3) done: see `docs/spike-a-matched-b-train4-eval3-results.md` (all nine B counts match; beam concept 8,434, S0 5,160). Then spike E (reward-only): does shaping find paths outside the beam, and does it beat post-hoc S3?
+Primary run (train 4 / eval 3) done: see `docs/spikes/spike-a-matched-b-train4-eval3-results.md` (all nine B counts match; beam concept 8,434, S0 5,160). Spike E (reward-only) is cancelled (ADR 0002). Next: search candidate paths beyond the beam and re-select evidence, compared with a wider beam at equal budget.

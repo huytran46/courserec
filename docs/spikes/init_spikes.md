@@ -2,7 +2,9 @@
 
 Spikes verify one assumption each before committing to long training runs. All are smoke runs: 2 epochs, Xuetang (MOOCCube), Colab free tier T4, seed 23.
 
-Target: reproduce the UPGPR baseline on Xuetang as the control for the reward-shaping thesis (see `docs/thesis-context.md`).
+Target: reproduce the UPGPR baseline on Xuetang as the control for the thesis (see `docs/thesis-context.md`).
+
+> Direction changed on 2026-11-05 (ADR 0002): reward shaping is dropped; the thesis now searches and re-selects evidence paths on top of an unchanged UPGPR. These smoke spikes (setup, timing, protocol) still apply to the baseline. Findings about `R_length` and self-loop leverage no longer matter.
 
 Status: all spikes done (2026-10-10 and 2026-10-17). Nothing from the paper is reproduced yet; no full-epoch run has been done.
 

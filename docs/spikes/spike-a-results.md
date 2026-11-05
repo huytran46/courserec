@@ -2,7 +2,7 @@
 
 Status: COMPLETE (run on Colab, real embeddings, exact full cohort, 0 censored).
 Raw outputs: Drive `MyDrive/courserec/spike_a/mooc_T3/` (`report.md`, `manifest.json`, `summary.json`, `pairs.csv`, `witnesses.json`, `excluded_pairs.csv`).
-Tool and how to run: `docs/spike-a-alt-path-reachability.md`, code in `src/spike_a/`, branch `worktree-spike-a-alt-path-reachability` (commit `0ef3c6d`, not pushed).
+Tool and how to run: `docs/spikes/spike-a-alt-path-reachability.md`, code in `src/spike_a/`, branch `worktree-spike-a-alt-path-reachability` (commit `0ef3c6d`, not pushed).
 
 ## Question
 
@@ -59,6 +59,6 @@ Shares are over reachable pairs; over eligible pairs they are the same to one de
 
 - Headroom is large: almost every test positive is reachable through several relation types, and pruning removes about 62% of paths but keeps multi-family access for 99.3% of pairs.
 - Teacher paths are the scarcest and the most hurt by pruning (22.6% to 17.4%).
-- The beam shows far less diversity than the graph allows (6.3% of pairs with >=2 patterns vs 99.3% available), which is the gap reward shaping could target.
-- Counts only confirm headroom and constraints. They do not measure controllability or learnability; that needs spike E.
+- The beam shows far less diversity than the graph allows (6.3% of pairs with >=2 patterns vs 99.3% available), which is the gap that searching candidate paths beyond the beam and re-selecting evidence targets (ADR 0002).
+- Counts only confirm headroom and constraints. They do not measure controllability or learnability; spike E (reward-only) is cancelled (ADR 0002).
 - Caveats to settle: confirm the source commit, and the embedding epochs.
