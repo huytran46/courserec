@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOOCCube: từ raw data đến Knowledge Graph</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ef;
+  --border: #dcdad3;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #7a7873;
+  --accent: #2a78d6;
+  --bad: #c0392b;
+  --bad-bg: #fbe9e6;
+  --ok-bg: #e6f4ec;
+  --c-user: #2a78d6;
+  --c-course: #eb6834;
+  --c-school: #1baf7a;
+  --c-teacher: #eda100;
+  --c-concept: #e87ba4;
+  --edge: #8d8b84;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface: #1a1a19;
+    --surface-2: #242423;
+    --border: #3a3a37;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-3: #98968c;
+    --accent: #3987e5;
+    --bad: #ff8a7a;
+    --bad-bg: #3a2220;
+    --ok-bg: #1d3328;
+    --c-user: #3987e5;
+    --c-course: #d95926;
+    --c-school: #199e70;
+    --c-teacher: #c98500;
+    --c-concept: #d55181;
+    --edge: #85837b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1a1a19; --surface-2: #242423; --border: #3a3a37;
+  --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #98968c; --accent: #3987e5;
+  --bad: #ff8a7a; --bad-bg: #3a2220; --ok-bg: #1d3328;
+  --c-user: #3987e5; --c-course: #d95926; --c-school: #199e70;
+  --c-teacher: #c98500; --c-concept: #d55181; --edge: #85837b;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--surface); color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 80px; }
+header { padding: 32px 0 8px; }
+h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 0 0 4px; }
+h3 { font-size: 15px; margin: 18px 0 6px; }
+p { margin: 6px 0; }
+.sub { color: var(--ink-2); max-width: 760px; }
+.note {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; color: var(--ink-2); font-size: 13px; margin: 10px 0;
+}
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+nav {
+  position: sticky; top: 0; z-index: 10; background: var(--surface);
+  border-bottom: 1px solid var(--border); margin: 0 -16px; padding: 8px 16px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+nav a {
+  text-decoration: none; color: var(--ink-2); font-size: 13px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: 999px;
+}
+nav a:hover { color: var(--ink); border-color: var(--ink-3); }
+section { padding: 28px 0 8px; border-bottom: 1px solid var(--border); }
+.ref { color: var(--ink-3); font-size: 12.5px; }
+.controls {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 16px; margin: 14px 0;
+}
+.controls label { display: block; font-size: 13px; color: var(--ink-2); }
+.controls input[type=range] { width: 100%; accent-color: var(--accent); }
+.controls b { color: var(--ink); }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface); overflow-x: auto; }
+.card h4 { margin: 0 0 6px; font-size: 13px; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--ink-3); font-weight: 600; font-size: 11.5px; text-transform: none; }
+tr.rm td { color: var(--ink-3); text-decoration: line-through; background: var(--bad-bg); }
+tr.rm td.why { text-decoration: none; color: var(--bad); font-size: 11.5px; }
+tr.hl td { background: var(--ok-bg); }
+.why { white-space: nowrap; }
+.pill {
+  display: inline-block; padding: 0 8px; border-radius: 999px; font-size: 11.5px;
+  border: 1px solid var(--border); color: var(--ink-2); background: var(--surface-2);
+}
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin: 10px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+button, .chip {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--ink-3); }
+button[aria-pressed="true"], button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+pre.file {
+  margin: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; line-height: 1.5; overflow-x: auto; max-height: 220px;
+}
+pre.file .ln { color: var(--ink-3); user-select: none; }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin: 14px 0; }
+.stage {
+  flex: 1 1 150px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  background: var(--surface); text-decoration: none; color: inherit; position: relative;
+}
+.stage:hover { border-color: var(--accent); }
+.stage .n { font-size: 11.5px; color: var(--ink-3); }
+.stage .t { font-weight: 600; font-size: 14px; }
+.stage .d { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.arrow { align-self: center; color: var(--ink-3); }
+svg text { fill: var(--ink); font-size: 11.5px; }
+svg .muted { fill: var(--ink-3); }
+svg .edge { stroke: var(--edge); fill: none; stroke-width: 1.2; opacity: .45; }
+svg .edge.on { opacity: 1; stroke-width: 2.2; }
+svg .edge.dim, svg .node.dim { opacity: .1; }
+svg .node { cursor: pointer; }
+svg .node .ring { fill: none; stroke: var(--ink); stroke-width: 2; opacity: 0; }
+svg .node.sel .ring { opacity: 1; }
+.kgwrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 900px) { .kgwrap { grid-template-columns: minmax(0, 1fr) 280px; } }
+.dict { font-size: 12px; }
+.paths { font-size: 12.5px; max-height: 220px; overflow: auto; }
+.paths div { padding: 2px 0; border-bottom: 1px dotted var(--border); }
+.split-bar { display: flex; gap: 3px; margin: 6px 0; flex-wrap: wrap; }
+.split-bar span {
+  min-width: 46px; text-align: center; padding: 3px 6px; border-radius: 6px;
+  font-size: 12px; color: #fff;
+}
+.tr { background: var(--c-user); } .va { background: var(--c-teacher); color: #0b0b0b !important; } .te { background: var(--c-course); }
+footer { padding: 24px 0; color: var(--ink-3); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>MOOCCube: từ raw data đến Knowledge Graph</h1>
+  <p class="sub">Qui trình trong repo <code>courserec</code> (UPGPR): 4 file quan hệ TSV, lọc, đánh index, ghi file phẳng, chia train/val/test, rồi dựng KG dạng dict lồng nhau cho agent RL đi trên đồ thị.</p>
+  <div class="note">
+    <b>Dữ liệu trên trang là toy data tự tạo</b>, ID giả định (bộ MOOCCube thật không có trong repo, chưa verify format ID gốc).
+    Logic lọc, đánh index, ghi file, dựng graph viết lại từ code thật (<code>preprocess_mooc.py</code>, <code>make_dataset.py</code>, <code>data_utils.py</code>, <code>knowledge_graph.py</code>).
+    Kéo slider để thấy ngưỡng lọc tác động thế nào.
+  </div>
+</header>
+
+<nav>
+  <a href="#overview">Tổng quan</a>
+  <a href="#s1">1 Raw + lọc</a>
+  <a href="#s2">2 Entity + index</a>
+  <a href="#s3">3 File phẳng</a>
+  <a href="#s4">4 Split + load</a>
+  <a href="#s5">5 Dựng KG</a>
+  <a href="#s6">6 Path pattern</a>
+  <a href="#s7">Lưu ý / hỏi thầy</a>
+</nav>
+
+<section id="overview">
+  <h2>Tổng quan pipeline</h2>
+  <div class="flow">
+    <a class="stage" href="#s1"><div class="n">RAW</div><div class="t">4 file TSV</div><div class="d">course-concept, school-course, teacher-course, user-course</div></a>
+    <span class="arrow">→</span>
+    <a class="stage" href="#s1"><div class="n">1</div><div class="t">Lọc</div><div class="d">concept hiếm, course không có school, user ít enrolment</div></a>
+    <span class="arrow">→</span>
+    <a class="stage" href="#s2"><div class="n">2</div><div class="t">Entity + index</div><div class="d">unique() → số dòng = index</div></a>
+    <span class="arrow">→</span>
+    <a class="stage" href="#s3"><div class="n">3</div><div class="t">7 file .txt</div><div class="d">processed_files/, thẳng hàng theo courses.txt</div></a>
+    <span class="arrow">→</span>
+    <a class="stage" href="#s4"><div class="n">4</div><div class="t">Split + Dataset</div><div class="d">train/val/test theo user, load vào vocab</div></a>
+    <span class="arrow">→</span>
+    <a class="stage" href="#s5"><div class="n">5</div><div class="t">KnowledgeGraph</div><div class="d">G[type][id][relation] = tuple, 2 chiều</div></a>
+    <span class="arrow">→</span>
+    <a class="stage" href="#s6"><div class="n">6</div><div class="t">TransE + agent</div><div class="d">embedding, RL đi theo path</div></a>
+  </div>
+
+  <div class="controls">
+    <label>min_concept_count = <b id="vC"></b> (giữ concept xuất hiện trong <b>hơn</b> N course; mặc định thật = 10)
+      <input id="rC" type="range" min="0" max="5" step="1" value="2"></label>
+    <label>min_user_count = <b id="vU"></b> (giữ user có <b>ít nhất</b> N enrolment; mặc định thật = 10)
+      <input id="rU" type="range" min="1" max="6" step="1" value="3"></label>
+  </div>
+  <div class="legend" id="legend"></div>
+</section>
+
+<section id="s1">
+  <h2>1. Raw data và lọc</h2>
+  <p class="ref">preprocess_mooc.py: <code>read_all_relations</code> (dòng 15-31), <code>get_enrolments</code> (34-42)</p>
+  <p>Mỗi file là TSV 2 cột không header (đuôi <code>.json</code> nhưng đọc bằng <code>read_csv(delimiter="\t")</code>). Tên cột lấy từ tên file. Dòng bị gạch là dòng bị loại, kèm lý do.</p>
+  <div class="grid" id="rawTables"></div>
+  <h3>Thứ tự lọc</h3>
+  <ol>
+    <li><b>course-concept</b>: đếm số course của mỗi concept trên bảng raw, giữ concept có đếm <b>&gt; min_concept_count</b> (so sánh <code>&gt;</code> chặt).</li>
+    <li><b>user-course</b>: chỉ giữ course có trong <code>school-course</code>.</li>
+    <li>Trên kết quả bước 2, đếm enrolment mỗi user, giữ user có <b>&gt;= min_user_count</b> (so sánh <code>&gt;=</code>).</li>
+  </ol>
+  <div class="note">Hai ngưỡng dùng hai dấu so sánh khác nhau (<code>&gt;</code> và <code>&gt;=</code>). Đếm user diễn ra <b>sau</b> khi bỏ course không có school, nên user có thể rớt dù raw đủ enrolment.</div>
+  <div id="counts"></div>
+</section>
+
+<section id="s2">
+  <h2>2. Entity và đánh index</h2>
+  <p class="ref">preprocess_mooc.py: <code>get_all_entities</code> (45-66), <code>get_entity_to_idx</code> (81-92), <code>save_entities</code> (75-78)</p>
+  <p>Mỗi loại entity là <code>unique()</code> theo thứ tự xuất hiện, ghi ra <code>&lt;entity&gt;.txt</code>, mỗi dòng 1 ID. <b>Số dòng (từ 0) chính là index</b> dùng ở mọi file sau.</p>
+  <div class="grid" id="entityTables"></div>
+  <ul>
+    <li><b>users, courses</b> lấy từ enrolment đã lọc. <b>teachers, schools</b> lấy từ các course còn lại, tên teacher đổi <code>" "</code> thành <code>"_"</code>.</li>
+    <li><b>concepts</b> lấy từ bảng course-concept đã lọc ở bước 1, <b>không</b> giới hạn theo course còn lại, nên có thể có concept chỉ gắn với course đã bị loại (nút concept đó sẽ không nối với course nào trong KG).</li>
+  </ul>
+</section>
+
+<section id="s3">
+  <h2>3. File phẳng thẳng hàng theo course</h2>
+  <p class="ref">preprocess_mooc.py: <code>save_enrolments</code> (95-109), <code>save_all_relations</code> (116-167)</p>
+  <p>Ba file quan hệ có đúng 1 dòng mỗi course, <b>cùng thứ tự với <code>courses.txt</code></b>. Dòng i của file quan hệ mô tả course thứ i. Course không có teacher/concept vẫn giữ 1 dòng rỗng để không lệch hàng. Rê chuột vào hàng để thấy tương ứng.</p>
+  <div class="card" id="alignTable"></div>
+  <div class="grid" style="margin-top:12px" id="fileBoxes"></div>
+</section>
+
+<section id="s4">
+  <h2>4. Split train/validation/test và nạp vào Dataset</h2>
+  <p class="ref">make_dataset.py: <code>split_train_test_data_by_user</code> (34-62), <code>Dataset(...)</code> (data_utils.py)</p>
+  <p>Split <b>theo từng user</b>, không theo thời gian: mỗi user lấy 80% course làm train, phần còn lại chia đôi cho validation và test (ratio 0.8, ratio_validation 0.5). Ví dụ 1 user có 10 enrolment:</p>
+  <div class="row"><button id="reshuffle">Xáo ngẫu nhiên</button><span class="ref">sklearn <code>train_test_split</code>, seed cố định ở bản thật (<code>set_random_seed</code>)</span></div>
+  <div id="splitBar"></div>
+  <ul>
+    <li>Ba file <code>train.txt</code>, <code>validation.txt</code>, <code>test.txt</code>: mỗi dòng <code>user_idx course_idx</code>.</li>
+    <li><code>Dataset(data_dir, KG_ARGS)</code> dùng <code>set_name="train"</code> mặc định, nên <b>KG chỉ chứa edge enroll của train</b>. Test/validation không rò vào đồ thị.</li>
+    <li><code>Dataset</code> load vocab từ <code>entity_files</code> và danh sách chỉ số từ <code>item_relation</code> trong config (<code>mooc.json</code>).</li>
+  </ul>
+  <div class="note" id="splitNote"></div>
+</section>
+
+<section id="s5">
+  <h2>5. Dựng KnowledgeGraph</h2>
+  <p class="ref">knowledge_graph.py: <code>_load_entities</code>, <code>_load_enrolments</code>, <code>_load_knowledge</code>, <code>_add_edge</code>, <code>_clean</code></p>
+  <p>Cấu trúc: <code>G[entity_type][entity_id][relation] = tuple(ids)</code>. Mỗi lần thêm edge đều ghi <b>cả hai chiều</b> (head→tail và tail→head), nên đồ thị vô hướng. Toy bên dưới coi mọi enrolment đã lọc là train.</p>
+  <div class="row" id="stepBtns"></div>
+  <div class="kgwrap">
+    <div class="card"><svg id="kg" width="100%" role="img" aria-label="Knowledge graph toy"></svg></div>
+    <div class="card dict">
+      <h4>G của node được chọn</h4>
+      <div id="dict" class="mono">Bấm vào 1 node.</div>
+      <h4 style="margin-top:12px">Thống kê</h4>
+      <div id="kgStats"></div>
+    </div>
+  </div>
+  <div class="note">Bấm node để xem dict của nó, rê chuột để làm nổi hàng xóm. Bước <code>_clean</code> (dedup + sort) chạy cuối cùng nên mọi tuple đã sắp tăng dần.</div>
+</section>
+
+<section id="s6">
+  <h2>6. Path pattern và bước kế tiếp</h2>
+  <p class="ref">config/UPGPR/mooc.json: <code>path_pattern</code>; kg_env.py, actor_critic.py, train_transe_model.py</p>
+  <p>Agent RL xuất phát từ 1 user và đi tối đa <code>max_path_len</code> (=3 trong config) bước trên KG tới 1 course để giải thích đề xuất. Chọn user và pattern để xem path trên toy KG (chỉ liệt kê course user chưa enrol):</p>
+  <div class="row" id="userBtns"></div>
+  <div class="row" id="patBtns"></div>
+  <div class="card paths" id="pathList"></div>
+  <p class="note">Các bước trước agent: <code>train_transe_model</code> học embedding 100 chiều cho node và relation trên KG này (<code>embed_size</code> 100, 30 epoch). <code>train_agent</code> dùng actor-critic (hidden 512,256; <code>max_acts</code> 250; <code>gamma</code> 0.99). PGPR/UPGPR chuyển bằng config (<code>reward</code>, <code>use_pattern</code>, <code>max_path_len</code>, <code>topk</code>), không đổi code.</p>
+</section>
+
+<section id="s7">
+  <h2>Lưu ý / điểm có thể hỏi thầy</h2>
+  <ul>
+    <li><b>Đếm concept dùng raw, đếm user dùng sau lọc school.</b> Hai ngưỡng khác dấu (<code>&gt;</code> vs <code>&gt;=</code>), có chủ ý không?</li>
+    <li><b>Concept không bị giới hạn theo course còn lại</b>, nên vocab concept có thể chứa node mồ côi (degree 0 ngoài self-loop).</li>
+    <li><b>Split theo user ngẫu nhiên, không theo thời gian.</b> Nếu dữ liệu có timestamp thì split theo thời gian sẽ sát thực tế hơn; MOOCCube raw 4 file này không có cột thời gian.</li>
+    <li><b>KG không dùng <code>use_user_relations</code>, <code>use_entity_relations</code></b> (đều false), nên không có quan hệ concept-concept (prerequisite) của MOOCCube gốc.</li>
+    <li><b>Mỗi course đúng 1 school</b> (<code>course_to_school[c] = s</code> ghi đè). Nếu raw có course thuộc nhiều school, chỉ school cuối còn lại.</li>
+    <li><b>Pattern 4 trong <code>mooc.json</code></b> ghi bước cuối là <code>item_concept</code> sau node school, có vẻ lệch với <code>item_school</code>. Cần kiểm tra lại trong code agent trước khi kết luận.</li>
+    <li><b>sklearn split</b>: sau lần chia đầu phải còn ít nhất 2 course cho validation+test. Nhờ <code>min_user_count=10</code> nên không lỗi; hạ ngưỡng xuống dưới 6 sẽ lỗi (xem ghi chú mục 4).</li>
+  </ul>
+</section>
+<footer>Sinh từ code repo courserec. Màu: user xanh dương, course cam, school xanh ngọc, teacher vàng, concept hồng; mỗi loại cũng có hình dạng riêng.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- toy raw data (illustrative IDs) ---------- */
+  const RAW = {
+    "user-course": [
+      ["u1","c1"],["u1","c2"],["u1","c3"],["u1","c4"],
+      ["u2","c1"],["u2","c2"],["u2","c5"],
+      ["u3","c2"],["u3","c3"],["u3","c4"],["u3","c5"],
+      ["u4","c1"],["u4","c6"],
+      ["u5","c3"],
+      ["u6","c1"],["u6","c3"],["u6","c5"]
+    ],
+    "school-course": [["s1","c1"],["s1","c2"],["s1","c3"],["s2","c4"],["s2","c5"]],
+    "teacher-course": [["An Nguyen","c1"],["An Nguyen","c2"],["Binh Tran","c3"],["Binh Tran","c4"],["Lan Le","c5"],["Lan Le","c6"]],
+    "course-concept": [
+      ["c1","python"],["c2","python"],["c3","python"],["c4","python"],
+      ["c2","algebra"],["c3","algebra"],["c5","algebra"],
+      ["c1","stats"],["c4","stats"],["c5","stats"],["c6","stats"],
+      ["c6","rare-topic"]
+    ]
+  };
+  const COLS = {
+    "user-course": ["user","course"], "school-course": ["school","course"],
+    "teacher-course": ["teacher","course"], "course-concept": ["course","concept"]
+  };
+  const TYPES = ["user","item","school","teacher","concept"];
+  const TYPE_LABEL = { user:"user", item:"course", school:"school", teacher:"teacher", concept:"concept" };
+  const TYPE_COLOR = { user:"--c-user", item:"--c-course", school:"--c-school", teacher:"--c-teacher", concept:"--c-concept" };
+  const FILE_OF = { user:"users.txt", item:"courses.txt", school:"schools.txt", teacher:"teachers.txt", concept:"concepts.txt" };
+  const REL_TAIL = { enroll:"user", item_concept:"concept", item_school:"school", item_teacher:"teacher" };
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs, html) => {
+    const e = document.createElement(tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (html != null) e.innerHTML = html;
+    return e;
+  };
+  const esc = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const uniq = (arr) => { const seen = new Set(), out = []; for (const x of arr) if (!seen.has(x)) { seen.add(x); out.push(x); } return out; };
+  const count = (arr) => { const m = new Map(); for (const x of arr) m.set(x, (m.get(x)||0) + 1); return m; };
+  const underscore = (s) => s.replace(/ /g, "_");
+
+  /* ---------- the pipeline, mirroring preprocess_mooc.py ---------- */
+  function compute(minC, minU) {
+    // read_all_relations: concept kept iff its row count in course-concept > minC
+    const ccCount = count(RAW["course-concept"].map(r => r[1]));
+    const cc = RAW["course-concept"].map(r => ({ row:r, keep: ccCount.get(r[1]) > minC, cnt: ccCount.get(r[1]) }));
+    const ccKept = cc.filter(x => x.keep).map(x => x.row);
+
+    // get_enrolments: course must be in school-course, then user count >= minU
+    const schoolCourses = new Set(RAW["school-course"].map(r => r[1]));
+    const afterSchool = RAW["user-course"].filter(r => schoolCourses.has(r[1]));
+    const uCount = count(afterSchool.map(r => r[0]));
+    const uc = RAW["user-course"].map(r => {
+      if (!schoolCourses.has(r[1])) return { row:r, keep:false, why:"course không có school" };
+      if (uCount.get(r[0]) < minU) return { row:r, keep:false, why:"user có " + uCount.get(r[0]) + " < " + minU };
+      return { row:r, keep:true };
+    });
+    const enrol = uc.filter(x => x.keep).map(x => x.row);
+
+    // get_all_entities
+    const users = uniq(enrol.map(r => r[0]));
+    const courses = uniq(enrol.map(r => r[1]));
+    const cset = new Set(courses);
+    const tcKeep = RAW["teacher-course"].filter(r => cset.has(r[1]));
+    const scKeep = RAW["school-course"].filter(r => cset.has(r[1]));
+    const teachers = uniq(tcKeep.map(r => underscore(r[0])));
+    const schools = uniq(scKeep.map(r => r[0]));
+    const concepts = uniq(ccKept.map(r => r[1]));
+    const ent = { user: users, item: courses, school: schools, teacher: teachers, concept: concepts };
+    const idx = {};
+    for (const t of TYPES) { idx[t] = new Map(); ent[t].forEach((e, i) => idx[t].set(e, i)); }
+
+    // save_enrolments
+    const enrolments = enrol.map(r => [idx.user.get(r[0]), idx.item.get(r[1])]);
+
+    // save_all_relations (aligned to courses.txt)
+    const c2s = new Map(); RAW["school-course"].forEach(r => c2s.set(r[1], r[0]));
+    const c2t = new Map(); RAW["teacher-course"].forEach(r => { const t = underscore(r[0]); c2t.set(r[1], (c2t.get(r[1])||[]).concat(t)); });
+    const c2k = new Map(); ccKept.forEach(r => c2k.set(r[0], (c2k.get(r[0])||[]).concat(r[1])));
+    const courseSchool = courses.map(c => idx.school.get(c2s.get(c)));
+    const courseTeachers = courses.map(c => (c2t.get(c)||[]).map(t => idx.teacher.get(t)));
+    const courseConcepts = courses.map(c => (c2k.get(c)||[]).map(k => idx.concept.get(k)));
+
+    return { cc, uc, ccKept, enrol, ent, idx, enrolments, courseSchool, courseTeachers, courseConcepts };
+  }
+
+  /* ---------- KG, mirroring knowledge_graph.py ---------- */
+  const REL_ORDER = ["enroll","item_concept","item_school","item_teacher"];
+  function buildKG(S, upToStep) {
+    const G = {};
+    const REL_OF = { user:["enroll"], item:["enroll","item_concept","item_school","item_teacher"],
+                     school:["item_school"], teacher:["item_teacher"], concept:["item_concept"] };
+    for (const t of TYPES) { G[t] = {}; S.ent[t].forEach((_, i) => { G[t][i] = {}; REL_OF[t].forEach(r => G[t][i][r] = []); }); }
+    const edges = []; // {rel, h:[type,id], t:[type,id]}
+    const add = (t1, i1, rel, t2, i2) => { G[t1][i1][rel].push(i2); G[t2][i2][rel].push(i1); edges.push({ rel, a:[t1,i1], b:[t2,i2] }); };
+    const active = REL_ORDER.slice(0, upToStep);
+    if (active.includes("enroll")) S.enrolments.forEach(([u, c]) => add("user", u, "enroll", "item", c));
+    if (active.includes("item_concept")) S.courseConcepts.forEach((ks, c) => new Set(ks).forEach(k => add("item", c, "item_concept", "concept", k)));
+    if (active.includes("item_school")) S.courseSchool.forEach((s, c) => add("item", c, "item_school", "school", s));
+    if (active.includes("item_teacher")) S.courseTeachers.forEach((ts, c) => new Set(ts).forEach(t => add("item", c, "item_teacher", "teacher", t)));
+    // _clean: dedup + sort
+    for (const t of TYPES) for (const i in G[t]) for (const r in G[t][i]) G[t][i][r] = Array.from(new Set(G[t][i][r])).sort((a, b) => a - b);
+    return { G, edges };
+  }
+
+  /* ---------- rendering ---------- */
+  let S, kgStep = 4, selNode = null, pathHL = null, selUser = 0, selPat = 3;
+
+  function renderLegend() {
+    const sh = { user:'<svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--c-user)"/></svg>',
+      item:'<svg width="14" height="14"><rect x="1" y="2" width="12" height="10" rx="2" fill="var(--c-course)"/></svg>',
+      school:'<svg width="14" height="14"><path d="M7 0 L14 7 L7 14 L0 7Z" fill="var(--c-school)"/></svg>',
+      teacher:'<svg width="14" height="14"><path d="M7 1 L14 13 L0 13Z" fill="var(--c-teacher)"/></svg>',
+      concept:'<svg width="22" height="14"><rect x="0" y="2" width="22" height="10" rx="5" fill="var(--c-concept)"/></svg>' };
+    $("legend").innerHTML = TYPES.map(t => `<span>${sh[t]} ${TYPE_LABEL[t]}</span>`).join("");
+  }
+
+  function table(head, rows) {
+    return `<table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+  }
+
+  function renderRaw() {
+    const box = $("rawTables"); box.innerHTML = "";
+    for (const name of Object.keys(RAW)) {
+      const items = name === "course-concept" ? S.cc : name === "user-course" ? S.uc : null;
+      let rows;
+      if (items) {
+        rows = items.map(x => `<tr class="${x.keep ? "" : "rm"}"><td>${esc(x.row[0])}</td><td>${esc(x.row[1])}</td><td class="why">${x.keep ? "" : esc(name === "course-concept" ? "concept chỉ có " + x.cnt + " course" : x.why)}</td></tr>`);
+      } else {
+        rows = RAW[name].map(r => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td></td></tr>`);
+      }
+      const card = el("div", { class: "card" }, `<h4>${name}.json</h4>` + table([...COLS[name], ""], rows));
+      box.appendChild(card);
+    }
+    const nU = new Set(RAW["user-course"].map(r => r[0])).size, nC = new Set(RAW["user-course"].map(r => r[1])).size;
+    $("counts").innerHTML = `<div class="row"><span class="pill">enrolment ${RAW["user-course"].length} → ${S.enrol.length}</span>
+      <span class="pill">user ${nU} → ${S.ent.user.length}</span>
+      <span class="pill">course ${nC} → ${S.ent.item.length}</span>
+      <span class="pill">concept ${new Set(RAW["course-concept"].map(r => r[1])).size} → ${S.ent.concept.length}</span></div>`;
+  }
+
+  function renderEntities() {
+    const box = $("entityTables"); box.innerHTML = "";
+    for (const t of TYPES) {
+      const rows = S.ent[t].map((e, i) => `<tr><td>${i}</td><td>${esc(e)}</td></tr>`);
+      box.appendChild(el("div", { class: "card" }, `<h4>${FILE_OF[t]} <span class="pill">${S.ent[t].length}</span></h4>` + table(["dòng = index", "ID"], rows.length ? rows : ['<tr><td colspan="2">(rỗng)</td></tr>'])));
+    }
+  }
+
+  function renderAlign() {
+    const rows = S.ent.item.map((c, i) => {
+      const sch = S.courseSchool[i], ts = S.courseTeachers[i], ks = S.courseConcepts[i];
+      return `<tr data-i="${i}"><td>${i}</td><td>${esc(c)}</td><td>${sch}</td><td>${ts.join(" ")}</td><td>${ks.join(" ")}</td></tr>`;
+    });
+    $("alignTable").innerHTML = table(["dòng", "courses.txt", "course_school.txt", "course_teachers.txt", "course_concepts.txt"], rows);
+    const pre = (lines) => `<pre class="file">${lines.map((l, i) => `<span class="ln">${String(i).padStart(2," ")}  </span>${esc(l)}`).join("\n")}</pre>`;
+    $("fileBoxes").innerHTML =
+      `<div><h4 class="ref">enrolments.txt  (user_idx course_idx)</h4>${pre(S.enrolments.map(p => p.join(" ")))}</div>` +
+      `<div><h4 class="ref">course_school.txt</h4>${pre(S.courseSchool.map(String))}</div>` +
+      `<div><h4 class="ref">course_teachers.txt</h4>${pre(S.courseTeachers.map(a => a.join(" ")))}</div>` +
+      `<div><h4 class="ref">course_concepts.txt</h4>${pre(S.courseConcepts.map(a => a.join(" ")))}</div>`;
+    $("alignTable").querySelectorAll("tr[data-i]").forEach(tr => {
+      tr.addEventListener("mouseenter", () => tr.classList.add("hl"));
+      tr.addEventListener("mouseleave", () => tr.classList.remove("hl"));
+    });
+  }
+
+  function renderSplit() {
+    const n = 10, ids = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    const nTrain = Math.floor(0.8 * n), rest = n - nTrain, nVal = Math.floor(0.5 * rest);
+    const part = (arr, cls) => arr.map(i => `<span class="${cls}">c${i}</span>`).join("");
+    $("splitBar").innerHTML = `<div class="split-bar">${part(ids.slice(0, nTrain), "tr")}${part(ids.slice(nTrain, nTrain + nVal), "va")}${part(ids.slice(nTrain + nVal), "te")}</div>
+      <div class="legend"><span><i class="pill tr" style="color:#fff">train ${nTrain}</i></span><span><i class="pill va" style="color:#0b0b0b">validation ${nVal}</i></span><span><i class="pill te" style="color:#fff">test ${rest - nVal}</i></span></div>`;
+    $("splitNote").innerHTML = `Quy tắc kích thước (theo sklearn): lần 1 train = floor(0.8·n), phần còn lại r = n − train. Lần 2 chia r theo train_size 0.5, nên cần floor(0.5·r) ≥ 1, tức r ≥ 2, tức n ≥ 6. Với n=10: train 8, r=2 → validation 1, test 1. Phần quy tắc n ≥ 6 là suy ra từ sklearn, chưa chạy thử trong repo này.`;
+  }
+
+  /* ---------- KG svg ---------- */
+  const COLX = { user: 70, item: 290, school: 520, teacher: 690, concept: 860 };
+  function layout() {
+    const pos = {}; let maxN = 0;
+    for (const t of TYPES) maxN = Math.max(maxN, S.ent[t].length);
+    const H = Math.max(maxN, 3) * 46 + 50;
+    for (const t of TYPES) {
+      const n = S.ent[t].length, gap = n > 1 ? (H - 70) / (n - 1) : 0;
+      S.ent[t].forEach((_, i) => { pos[t + ":" + i] = { x: COLX[t], y: n > 1 ? 50 + i * Math.min(gap, 46) + (H - 70 - Math.min(gap, 46) * (n - 1)) / 2 : H / 2 }; });
+    }
+    return { pos, H };
+  }
+  function glyph(t, x, y) {
+    const c = `var(${TYPE_COLOR[t]})`;
+    if (t === "user") return `<circle cx="${x}" cy="${y}" r="9" fill="${c}"/><circle class="ring" cx="${x}" cy="${y}" r="13"/>`;
+    if (t === "item") return `<rect x="${x-10}" y="${y-8}" width="20" height="16" rx="3" fill="${c}"/><rect class="ring" x="${x-14}" y="${y-12}" width="28" height="24" rx="5"/>`;
+    if (t === "school") return `<path d="M${x} ${y-11} L${x+11} ${y} L${x} ${y+11} L${x-11} ${y}Z" fill="${c}"/><path class="ring" d="M${x} ${y-16} L${x+16} ${y} L${x} ${y+16} L${x-16} ${y}Z"/>`;
+    if (t === "teacher") return `<path d="M${x} ${y-10} L${x+10} ${y+8} L${x-10} ${y+8}Z" fill="${c}"/><path class="ring" d="M${x} ${y-15} L${x+15} ${y+12} L${x-15} ${y+12}Z"/>`;
+    return `<rect x="${x-12}" y="${y-7}" width="24" height="14" rx="7" fill="${c}"/><rect class="ring" x="${x-16}" y="${y-11}" width="32" height="22" rx="11"/>`;
+  }
+  function renderKG() {
+    const { G, edges } = buildKG(S, kgStep);
+    const { pos, H } = layout();
+    const svg = $("kg"); svg.setAttribute("viewBox", `0 0 960 ${H}`); svg.style.height = Math.min(H, 640) * 0.98 + "px";
+    let out = "";
+    for (const t of TYPES) out += `<text class="muted" x="${COLX[t]}" y="18" text-anchor="middle">${TYPE_LABEL[t]}</text>`;
+    edges.forEach((e, n) => {
+      const a = pos[e.a.join(":")], b = pos[e.b.join(":")], mx = (a.x + b.x) / 2;
+      out += `<path class="edge" data-a="${e.a.join(":")}" data-b="${e.b.join(":")}" data-rel="${e.rel}" d="M${a.x} ${a.y} C${mx} ${a.y} ${mx} ${b.y} ${b.x} ${b.y}"/>`;
+    });
+    for (const t of TYPES) S.ent[t].forEach((name, i) => {
+      const p = pos[t + ":" + i], lab = name.length > 11 ? name.slice(0, 10) + "…" : name;
+      out += `<g class="node" data-k="${t}:${i}">${glyph(t, p.x, p.y)}<text x="${p.x}" y="${p.y + 25}" text-anchor="middle">${esc(lab)}</text><title>${esc(name)} (${TYPE_LABEL[t]} ${i})</title></g>`;
+    });
+    svg.innerHTML = out;
+    svg._G = G;
+    const paths = svg.querySelectorAll(".edge"), nodes = svg.querySelectorAll(".node");
+    const neigh = (k) => { const s = new Set([k]); paths.forEach(p => { if (p.dataset.a === k) s.add(p.dataset.b); if (p.dataset.b === k) s.add(p.dataset.a); }); return s; };
+    const focus = (k) => {
+      if (!k) { paths.forEach(p => p.classList.remove("on","dim")); nodes.forEach(n => n.classList.remove("dim")); applyPathHL(); return; }
+      const s = neigh(k);
+      paths.forEach(p => { const on = p.dataset.a === k || p.dataset.b === k; p.classList.toggle("on", on); p.classList.toggle("dim", !on); });
+      nodes.forEach(n => n.classList.toggle("dim", !s.has(n.dataset.k)));
+    };
+    nodes.forEach(n => {
+      n.addEventListener("mouseenter", () => focus(n.dataset.k));
+      n.addEventListener("mouseleave", () => focus(selNode));
+      n.addEventListener("click", () => { selNode = selNode === n.dataset.k ? null : n.dataset.k; nodes.forEach(m => m.classList.toggle("sel", m.dataset.k === selNode)); showDict(); focus(selNode); });
+    });
+    nodes.forEach(m => m.classList.toggle("sel", m.dataset.k === selNode));
+    showDict(); focus(selNode);
+
+    const perRel = {}; edges.forEach(e => perRel[e.rel] = (perRel[e.rel]||0) + 1);
+    $("kgStats").innerHTML = `<div>node: <b>${TYPES.reduce((s, t) => s + S.ent[t].length, 0)}</b></div>` +
+      REL_ORDER.map(r => `<div>${r}: <b>${perRel[r]||0}</b> cạnh <span class="ref">(code đếm ${2*(perRel[r]||0)} vì ghi 2 chiều)</span></div>`).join("");
+  }
+  function showDict() {
+    const svg = $("kg"), G = svg._G;
+    if (!selNode || !G) { $("dict").textContent = "Bấm vào 1 node."; return; }
+    const [t, i] = selNode.split(":"); const d = G[t] && G[t][i];
+    if (!d) { $("dict").textContent = "Node không còn sau khi đổi ngưỡng."; selNode = null; return; }
+    $("dict").innerHTML = `<div>G['${t}'][${i}]  <span class="ref">${esc(S.ent[t][i])}</span></div>` +
+      Object.keys(d).map(r => {
+        const tail = t === "item" ? REL_TAIL[r] : "item";
+        const names = d[r].map(x => `${x}<span class="ref">:${esc(S.ent[tail][x])}</span>`).join(", ");
+        return `<div style="margin-top:4px">'${r}': (${names})</div>`;
+      }).join("");
+  }
+  function applyPathHL() {
+    const svg = $("kg"); if (!pathHL) return;
+    const keys = new Set(pathHL.nodes);
+    svg.querySelectorAll(".edge").forEach(p => { const on = pathHL.edges.has(p.dataset.a + "|" + p.dataset.b) || pathHL.edges.has(p.dataset.b + "|" + p.dataset.a); p.classList.toggle("on", on); p.classList.toggle("dim", !on); });
+    svg.querySelectorAll(".node").forEach(n => n.classList.toggle("dim", !keys.has(n.dataset.k)));
+  }
+
+  function renderSteps() {
+    const labels = ["khởi tạo node (dict rỗng)", "+ enroll", "+ item_concept", "+ item_school", "+ item_teacher"];
+    $("stepBtns").innerHTML = "";
+    labels.forEach((l, i) => {
+      const b = el("button", { "aria-pressed": String(kgStep === i) }, `${i}. ${l}`);
+      b.addEventListener("click", () => { kgStep = i; pathHL = null; renderSteps(); renderKG(); });
+      $("stepBtns").appendChild(b);
+    });
+  }
+
+  /* ---------- path patterns (toy) ---------- */
+  const PATTERNS = {
+    1: { name: "1: user→course→user→course", hops: [["enroll","item"],["enroll","user"],["enroll","item"]] },
+    2: { name: "2: user→course→teacher→course", hops: [["enroll","item"],["item_teacher","teacher"],["item_teacher","item"]] },
+    3: { name: "3: user→course→concept→course", hops: [["enroll","item"],["item_concept","concept"],["item_concept","item"]] },
+    4: { name: "4: user→course→school→course", hops: [["enroll","item"],["item_school","school"],["item_school","item"]] }
+  };
+  function renderPaths() {
+    const full = buildKG(S, 4).G;
+    $("userBtns").innerHTML = "<span class='ref'>user:</span>";
+    S.ent.user.forEach((u, i) => { const b = el("button", { "aria-pressed": String(selUser === i) }, esc(u)); b.addEventListener("click", () => { selUser = i; renderPaths(); }); $("userBtns").appendChild(b); });
+    $("patBtns").innerHTML = "<span class='ref'>pattern:</span>";
+    Object.keys(PATTERNS).forEach(k => { const b = el("button", { "aria-pressed": String(selPat == k) }, PATTERNS[k].name); b.addEventListener("click", () => { selPat = k; renderPaths(); }); $("patBtns").appendChild(b); });
+
+    const pat = PATTERNS[selPat], owned = new Set(full.user[selUser].enroll);
+    let frontier = [[["user", selUser]]];
+    pat.hops.forEach(([rel, tailType]) => {
+      const next = [];
+      frontier.forEach(path => {
+        const [ct, ci] = path[path.length - 1];
+        (full[ct][ci][rel] || []).forEach(x => { if (!path.some(p => p[0] === tailType && p[1] === x)) next.push(path.concat([[tailType, x]])); });
+      });
+      frontier = next;
+    });
+    const found = frontier.filter(p => !owned.has(p[p.length - 1][1]));
+    const label = (n) => `<b>${esc(S.ent[n[0]][n[1]])}</b>`;
+    $("pathList").innerHTML = found.length ? found.map(p => `<div>${p.map(label).join(" → ")}</div>`).join("") : "<div class='ref'>Không có path tới course chưa enrol với pattern này.</div>";
+
+    const nodes = new Set(), edges = new Set();
+    found.forEach(p => p.forEach((n, i) => { nodes.add(n.join(":")); if (i) edges.add(p[i-1].join(":") + "|" + n.join(":")); }));
+    pathHL = found.length ? { nodes, edges } : null;
+    kgStep = 4; selNode = null; renderSteps(); renderKG(); applyPathHL();
+  }
+
+  /* ---------- wire up ---------- */
+  function run() {
+    const minC = +$("rC").value, minU = +$("rU").value;
+    $("vC").textContent = minC; $("vU").textContent = minU;
+    S = compute(minC, minU);
+    if (selUser >= S.ent.user.length) selUser = 0;
+    renderRaw(); renderEntities(); renderAlign();
+    kgStep = 4; selNode = null; pathHL = null;
+    renderSteps(); renderKG();
+    if (S.ent.user.length) renderPaths(); else $("pathList").textContent = "Không còn user nào, nới ngưỡng.";
+  }
+  renderLegend(); renderSplit();
+  $("reshuffle").addEventListener("click", renderSplit);
+  $("rC").addEventListener("input", run); $("rU").addEventListener("input", run);
+  run();
+})();
+</script>
+</body>
+</html>
