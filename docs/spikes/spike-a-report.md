@@ -7,7 +7,7 @@ status: current
 
 Status: DONE. Availability and headroom only. No claim on reward shaping, causal attribution to the policy, or learner usefulness. Counts do not measure controllability or learnability (that is spike E).
 
-Detail files: `docs/spikes/spike-a-matched-b-results.md` (full tables and provenance), `docs/spikes/spike-a-alt-path-reachability.md` (how to run). Raw outputs on Drive: `MyDrive/courserec/spike_a/mooc_T3_full_embeds_matched_B/` (final) and `.../mooc_T3/` (stage 1). Code: `src/spike_a/`, tests `tests/alt_paths/` (56 pass), local branch `worktree-spike-a-alt-path-reachability` at `3ae7c08` (not pushed; `origin` is upstream).
+Detail files: `docs/spikes/spike-a-matched-b-results.md` (full tables and provenance), `docs/spikes/spike-a-alt-path-reachability.md` (how to run). Raw outputs on Drive: `MyDrive/courserec/spike_a/mooc_T3_full_embeds_matched_B/` (final) and `.../mooc_T3/` (stage 1). Code: `src/spike_a/`, tests `tests/alt_paths/` (56 pass), merged into main (tool commit `3ae7c08`).
 
 ## Question
 
