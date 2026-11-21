@@ -31,7 +31,12 @@ class KGState(object):
     
 
 class BatchKGEnvironment(object):
-    def __init__(self, data_path, kg_args, max_acts, max_path_len=3, state_history=1, reward_function="cosine", use_pattern=False):
+    def __init__(self, data_path, kg_args, max_acts, max_path_len=3, state_history=1, reward_function="cosine", use_pattern=False,
+                 concept_bonus_lambda=0.0):
+        # Spike E: terminal concept bonus (lambda=0 -> reward identical to the original).
+        self.concept_bonus_lambda = float(concept_bonus_lambda)
+        self._batch_curr_bonus = None  # raw B(path) of the last step (0 before terminal)
+        self._batch_curr_base_reward = None  # original reward of the last step
         self.max_acts = max_acts
         self.act_dim = max_acts + 1  # Add self-loop action, whose act_idx is always 0.
         self.max_num_nodes = max_path_len + 1  # max number of hops (= #nodes - 1)
@@ -363,6 +368,42 @@ class BatchKGEnvironment(object):
         batch_reward = [self._get_reward(path) for path in batch_path]
         return np.array(batch_reward)
 
+    def concept_bonus(self, path):
+        """B(path) in {0,1}: terminal concept bonus conditioned on a positive train endpoint.
+
+        B=1 iff: endpoint is an item in the starting learner's TRAIN history, path uses
+        relation `item_concept`, effective length (non-self-loop edges, start tuple excluded)
+        > 1, and the original `binary_train_reward` of the path is > 0 (validity gate).
+        Uses train labels only. Call only at the terminal step.
+        """
+        if len(path) < 3:
+            return 0.0
+        _, node_type, node_id = path[-1]
+        if node_type != 'item':
+            return 0.0
+        if node_id not in self.train_labels.get(path[0][-1], []):
+            return 0.0
+        edges = path[1:]
+        if sum(1 for r, _, _ in edges if r != self.kg_args.self_loop) <= 1:
+            return 0.0
+        if not any(r == 'item_concept' for r, _, _ in edges):
+            return 0.0
+        if self.binary_train_reward(path) <= 0:
+            return 0.0
+        return 1.0
+
+    def _batch_get_reward_shaped(self, batch_path, terminal):
+        """Original reward at every step + lambda * I(terminal) * B(path)."""
+        base = self._batch_get_reward(batch_path)
+        self._batch_curr_base_reward = base
+        bonus = np.zeros(len(batch_path))
+        if terminal:
+            bonus = np.array([self.concept_bonus(p) for p in batch_path])
+        self._batch_curr_bonus = bonus
+        if self.concept_bonus_lambda == 0.0:
+            return base
+        return base + self.concept_bonus_lambda * bonus
+
     def _is_done(self):
         """Episode ends only if max path length is reached."""
         return self._done or len(self._batch_path[0]) >= self.max_num_nodes
@@ -406,7 +447,7 @@ class BatchKGEnvironment(object):
         self._done = self._is_done()  # must run before get actions, etc.
         self._batch_curr_state = self._batch_get_state(self._batch_path)
         self._batch_curr_actions = self._batch_get_actions(self._batch_path, self._done)
-        self._batch_curr_reward = self._batch_get_reward(self._batch_path)
+        self._batch_curr_reward = self._batch_get_reward_shaped(self._batch_path, self._done)
 
         return self._batch_curr_state, self._batch_curr_reward, self._done
 
