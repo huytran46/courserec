@@ -1,3 +1,9 @@
+---
+type: spike
+status: history
+superseded_by: spikes/spike-a-matched-b-train4-eval3-results.md
+---
+
 # Spike A results: alternative-path reachability (MOOCCube, T3)
 
 Status: COMPLETE (run on Colab, real embeddings, exact full cohort, 0 censored).

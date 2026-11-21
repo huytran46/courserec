@@ -1,3 +1,8 @@
+---
+type: context
+status: current
+---
+
 # Thesis context
 
 Why this repo is being used. Read before touching evaluation, path selection, or experiment design.

@@ -1,3 +1,9 @@
+---
+type: spike
+status: history
+superseded_by: spikes/spike-a-matched-b-train4-eval3-results.md
+---
+
 # Spike A matched to Spike B full 3/3: where path availability is lost
 
 Status: COMPLETE (Colab CPU, 861 s, exact on both cohorts, 0 censored pairs). Availability and headroom only: no claim on reward shaping, causal attribution to the policy, or learner usefulness.

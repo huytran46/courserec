@@ -1,3 +1,8 @@
+---
+type: spike
+status: current
+---
+
 # Spike A matched to Spike B primary run (train 4 / eval 3)
 
 Status: COMPLETE (Colab CPU, 1198 s, exact on both cohorts, 0 censored). Availability and headroom only. No claim on reward shaping, causal attribution to the policy, or learner usefulness.

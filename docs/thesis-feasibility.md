@@ -1,3 +1,9 @@
+---
+type: history
+status: superseded
+superseded_by: adr/0002-pivot-to-alternative-path-selection.md
+---
+
 # Thesis feasibility: findings, spikes, risks
 
 > **SUPERSEDED (2026-11-05).** Viết cho hướng reward shaping, đã bị thay bởi hướng chọn lại đường giải thích (xem `docs/adr/0002-pivot-to-alternative-path-selection.md` và `docs/thesis-context.md`). Giữ để tham khảo lịch sử. Còn dùng được: mục 2 (hệ thống chạy được), mục 3 các ý 1, 2, 6, 7, 8 (protocol "+1", `topk`, chi phí, Colab), mục 4 (chỉ định hướng, model 2 epoch). Không dùng: topic, RQ, rủi ro R_length, spike C-G (gắn với reward), mục 7-8 (việc tiếp theo).

@@ -1,3 +1,8 @@
+---
+type: decision
+status: current
+---
+
 # 0002: Pivot from reward shaping to alternative-path search and re-selection
 
 Status: Accepted (2026-11-05). Direction approved by the supervisor (thesis proposal dated 2026-10-29, "Khuyen nghi khoa hoc ca nhan hoa co kha nang giai thich").

@@ -1,3 +1,8 @@
+---
+type: spike
+status: current
+---
+
 # Spike A: findings and lessons (session notes)
 
 Scope: availability and headroom only. No claim on reward shaping, causal attribution, or learner usefulness. Details: `spike-a-report.md`, `spike-a-matched-b-results.md` (3/3), `spike-a-matched-b-train4-eval3-results.md` (4/3, primary).

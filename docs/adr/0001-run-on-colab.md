@@ -1,3 +1,8 @@
+---
+type: decision
+status: current
+---
+
 # 0001: Run experiments on Google Colab
 
 Status: Accepted (2026-10-10)

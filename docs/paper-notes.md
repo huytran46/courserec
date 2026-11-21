@@ -1,3 +1,8 @@
+---
+type: fact
+status: current
+---
+
 # Paper notes
 
 Frej et al., "Finding Paths for Explainable MOOC Recommendation: A Learner Perspective", LAK '24. `paper.pdf` page refs below are PDF pages (1-12). Refs = p11-12, skip.

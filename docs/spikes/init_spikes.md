@@ -1,3 +1,8 @@
+---
+type: spike
+status: current
+---
+
 # Init spikes
 
 Spikes verify one assumption each before committing to long training runs. All are smoke runs: 2 epochs, Xuetang (MOOCCube), Colab free tier T4, seed 23.

@@ -1,3 +1,8 @@
+---
+type: fact
+status: current
+---
+
 # Findings
 
 Running log of verified facts about the repo, data, and thesis scope. Newest last.

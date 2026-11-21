@@ -1,3 +1,8 @@
+---
+type: howto
+status: current
+---
+
 # Spike A: alternative-path reachability
 
 Question: for each test (learner, positive course not in train), how many distinct paths exist, and how many relation types do they span? Separates full-graph reachability, environment-pruned reachability (`BatchKGEnvironment._get_actions`, top-`max_acts`) and beam availability. Counts show headroom only, not controllability (that is spike E).

@@ -1,3 +1,8 @@
+---
+type: spike
+status: current
+---
+
 # Spike A report: alternative-path reachability (MOOCCube / Xuetang, T3)
 
 Status: DONE. Availability and headroom only. No claim on reward shaping, causal attribution to the policy, or learner usefulness. Counts do not measure controllability or learnability (that is spike E).
