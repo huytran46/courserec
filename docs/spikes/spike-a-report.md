@@ -69,4 +69,4 @@ All nine reference counts from Spike B's own `selected_paths.jsonl` (concept 16,
 
 ## Next
 
-Primary run (train 4 / eval 3) done: see `docs/spikes/spike-a-matched-b-train4-eval3-results.md` (all nine B counts match; beam concept 8,434, S0 5,160). Spike E (reward-only) is cancelled (ADR 0002). Next: search candidate paths beyond the beam and re-select evidence, compared with a wider beam at equal budget.
+Primary run (train 4 / eval 3) done: see `docs/spikes/spike-a-matched-b-train4-eval3-results.md` (all nine B counts match; beam concept 8,434, S0 5,160). Spike E (reward-only) is not pursued (ADR 0002; code and reports kept). Next: search candidate paths beyond the beam and re-select evidence, compared with a wider beam at equal budget.

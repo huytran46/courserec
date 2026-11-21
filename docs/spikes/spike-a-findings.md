@@ -37,4 +37,4 @@ One seed per run. Top-K depends on the baseline ranking and the beam. Counts are
 
 ## Next
 
-Spike E (reward-only) is **cancelled** (ADR 0002, reward shaping dropped). The headroom measured here (many paths in the full graph, few in the beam) is the premise of the new method: search candidate paths beyond the beam, then re-select evidence. Next: implement the search and selector, define LIR/SEP/ETD, compare with a wider beam at equal budget. Optional: ID-map audit with `processed_files`; fork to push (`origin` is upstream `epfl-ml4ed`, do not push there).
+Spike E (reward-only) is **not pursued** (ADR 0002, reward shaping dropped; code and reports kept). The headroom measured here (many paths in the full graph, few in the beam) is the premise of the new method: search candidate paths beyond the beam, then re-select evidence. Next: implement the search and selector, define LIR/SEP/ETD, compare with a wider beam at equal budget. Optional: ID-map audit with `processed_files`; fork to push (`origin` is upstream `epfl-ml4ed`, do not push there).

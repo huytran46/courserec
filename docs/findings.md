@@ -52,7 +52,7 @@ Update 2026-11-05: the supervisor approved this direction (LLM sentence and surv
 
 ## Spikes A, B, E and M5 results (MOOC / Xuetang, train horizon 4 / eval 3, test 6,507 users, top-10)
 
-Numbers from saved outputs. Full reports, code and tables are on branch `worktree-spike-b-posthoc-paths` (`docs/m5/REPORT.md`, `docs/m5/S0_PATH_TYPES.md`, `docs/spike-m5-findings.md`) and Drive `courserec/m5/`. n=3 seeds (23/24/25), SD is sample SD, no significance claims.
+Numbers from saved outputs. Full reports, code and tables are in this repo (`docs/m5/REPORT.md`, `docs/m5/S0_PATH_TYPES.md`, `docs/spike-m5-findings.md`) and Drive `courserec/m5/`. n=3 seeds (23/24/25), SD is sample SD, no significance claims.
 
 - **Displayed explanation (selector S0):** control (no bonus) is co-learner dominated: 84.29% of explained slots (88.17 / 80.77 / 83.94% per seed), concept 15.54%, teacher 0.15%, school 0.02%. Shaped (lambda 5): co-learner 52.45%, concept 45.73%, school 1.00%, teacher 0.83%. No category entity exists in this KG; hybrid and other paths are 0 (horizon 3 only allows user -> item -> X -> item).
 - **Reward-only terminal concept bonus (M5):** concept@10 control S0 15.42 -> shaped S0 45.20; control S3 21.41 -> shaped S3 50.98. NDCG@10 19.05 vs 19.39 (no loss). Lambda picked on seed-23 validation from {0,1,5}.

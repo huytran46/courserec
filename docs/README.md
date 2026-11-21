@@ -32,7 +32,7 @@ Every doc has frontmatter: `type` and `status`, plus `superseded_by` when replac
 | `0002-pivot-to-alternative-path-selection.md` | Drop reward shaping, search and re-select evidence paths (current thesis direction) | current |
 
 ## Spikes (`spikes/`)
-Single-assumption smoke runs (Xuetang, Colab, seed 23). Spike E (reward-only) is cancelled since ADR 0002.
+Single-assumption smoke runs (Xuetang, Colab, seed 23). Spike E (reward-only) was run as a feasibility spike (code and reports kept, status `history`) but is not pursued since ADR 0002.
 
 | File | Type | Status | Purpose |
 |---|---|---|---|
