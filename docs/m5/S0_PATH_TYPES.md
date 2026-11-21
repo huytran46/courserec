@@ -1,3 +1,8 @@
+---
+type: spike
+status: history
+---
+
 # M5 - pattern types of displayed explanations (S0), MOOC / Xuetang
 
 Read-only analysis of the saved M5 test beams. No training, reward, split, beam or baseline change; no old result overwritten (new files only).

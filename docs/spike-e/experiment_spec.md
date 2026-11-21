@@ -1,3 +1,8 @@
+---
+type: spike
+status: history
+---
+
 # Spike E - reward-only concept controllability (spec fixed before the run)
 
 Question: does a terminal concept bonus in the reward make the policy produce more concept paths at eval, and can the post-hoc selector (Spike B) exploit them? One seed, feasibility only.

@@ -1,3 +1,8 @@
+---
+type: spike
+status: history
+---
+
 # M5 report - reward-only concept shaping vs same-item selector S3
 
 **Status: COMPLETE, funnel covers the Spike A cache cohort only.** The full matrix ran (lambda selection locked on validation, 3 paired seeds x 2 arms x 50 epochs, raw beams, per-user outputs, S0/S3 invariants). The funnel (full graph -> after pruning -> beam -> S0/S3) was added afterwards from the Spike A matched cache (see "Funnel"): full/pruned stages are known for 54-59% of each arm's top-10 pairs (74% of common pairs); the rest are `uncovered` (unknown, not "no path"). Beam/S0/S3 are known for all pairs. Units: fractions in [0,1] in files, shown as % / pp here. n=3 seeds: SD is sample SD (ddof=1), no significance or non-inferiority claim is made.

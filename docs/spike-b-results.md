@@ -1,3 +1,8 @@
+---
+type: spike
+status: current
+---
+
 # Spike B report: same-item post-hoc path selection
 
 Scope: UPGPR on MOOCCube (Xuetang), saved beam outputs only. No retraining of the selectors, no change to embeddings, candidate items or ranking. Wording follows the thesis rule: results are about explanation-oriented path properties (relation composition), not human perception.

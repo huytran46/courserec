@@ -1,3 +1,8 @@
+---
+type: spike
+status: history
+---
+
 # Findings log (Spike A, B, E, M5) - MOOC / Xuetang, train 4 / eval 3
 
 Only numbers computed from saved outputs. Units: fractions as % / pp. n=3 seeds means sample SD (ddof=1), no significance claims. Detailed sources: `docs/m5/REPORT.md`, `docs/m5/S0_PATH_TYPES.md`, `docs/m5/preflight.md`; Drive `courserec/m5/tables/`, `courserec/spike_a/`.

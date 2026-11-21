@@ -1,3 +1,8 @@
+---
+type: spike
+status: history
+---
+
 # M5 preflight (before any full run)
 
 ## Code mapping (verified by reading code)

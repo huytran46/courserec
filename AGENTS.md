@@ -21,4 +21,4 @@ Why we use it: MSc thesis on explainable personalized course recommendation. UPG
 - Thesis metrics: LIR, SEP, ETD (Balloccu et al.) plus cost; rec metrics must stay unchanged (Top-10 kept). LIR needs enrolment timestamps, which `preprocess_mooc.py` currently drops.
 - PGPR vs UPGPR switched purely by config (`reward`, `use_pattern`, `max_path_len`, `topk` in TRAIN_AGENT/TEST_AGENT). See README "Config files".
 - Custom dataset: define `KG_ARGS` in config (see `config/UPGPR/example.json`).
-- No test suite. Datasets are large and not in repo - don't assume they exist.
+- Tests: `tests/` (pytest, spike A/B/E/M5 code only, pytest not in requirements.txt). No tests for the base UPGPR pipeline. Datasets are large and not in repo - don't assume they exist.

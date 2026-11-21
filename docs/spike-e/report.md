@@ -1,3 +1,8 @@
+---
+type: spike
+status: history
+---
+
 # Spike E report - reward-only concept controllability
 
 Status: **DONE (feasibility, one seed)**. Recommendation: **GO** (verify before building on it). Scope: seed 23, 5 epochs per branch, train4/eval3, CPU Colab. Says nothing about learner usefulness or reproduction of the paper. Spec: `experiment_spec.md`. Artifacts (beams, checkpoints, per-epoch logs, `summary.json`, `same_pair_comparison.csv`, `manifest.json` with all hashes, Spike B outputs per branch): Drive `courserec/tmp/spike_e_mooc_t4e3/`. This report and the spec live in the repo at `docs/spike-e/` (not copied to Drive).

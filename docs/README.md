@@ -44,6 +44,19 @@ Single-assumption smoke runs (Xuetang, Colab, seed 23). Spike E (reward-only) is
 | `spike-a-matched-b-results.md` | spike | history | Spike A 3/3 run, secondary to the 4/3 run |
 | `spike-a-results.md` | spike | history | Spike A stage 1, replaced by the matched runs |
 
+Reward-shaping era spikes (E, M5), kept at their original paths, all `history` since ADR 0002 dropped reward shaping. Spike B (post-hoc same-item selection) is closest to the current method.
+
+| File | Type | Status | Purpose |
+|---|---|---|---|
+| `spike-b-results.md` | spike | current | Spike B: same-item post-hoc path selection. Code `src/UPGPR/spike_b_posthoc.py` |
+| `spike-m5-findings.md` | spike | history | Findings log for Spikes A, B, E, M5 |
+| `m5/` (`REPORT.md`, `S0_PATH_TYPES.md`, `preflight.md`) | spike | history | M5: reward-only concept shaping vs selector S3 |
+| `spike-e/` (`report.md`, `experiment_spec.md`) | spike | history | Spike E: reward-only concept controllability |
+
+Code lives in `../src/spike_a/` (Spike A, tests `../tests/alt_paths/`), `../src/UPGPR/` (`spike_b_posthoc.py`, `m5_*.py`, `spike_e_*.py`, tests `../tests/`).
+
+Visual explainers (no frontmatter, not for agents): `pipeline-raw-to-graph.html`, `demo/rl-path-demo.html`.
+
 New spike: `spikes/spike-<letter>-*.md`, add a row above.
 
 Other: `../README.md` (how to run the pipeline), `../notebooks/colab_upgpr_mooc.ipynb` (Colab runner, ADR 0001).
