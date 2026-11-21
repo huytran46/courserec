@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RL Agent: từ Learner đến Course</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --ink:#1c2230; --mute:#6b7487; --line:#d9dde6;
+  --learner:#3b82f6; --course:#16a34a; --teacher:#d97706; --cat:#9333ea;
+  --good:#16a34a; --bad:#dc2626; --accent:#2563eb; --hl:#fde68a;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12151c;--card:#1a1f2b;--ink:#e6e9f0;--mute:#8d96aa;--line:#2b3242;--hl:#5b4a12}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{padding:16px 20px 4px}
+h1{margin:0;font-size:20px}
+header p{margin:4px 0 0;color:var(--mute)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;padding:10px 20px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:disabled{opacity:.4;cursor:default;border-color:var(--line)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.good{border-color:var(--good);color:var(--good)}
+button.bad{border-color:var(--bad);color:var(--bad)}
+main{display:grid;grid-template-columns:minmax(380px,1.2fr) minmax(320px,1fr);gap:12px;padding:0 20px 24px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.mute{color:var(--mute)}
+.steps{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.steps span{padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--mute);font-size:13px}
+.steps span.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip{display:inline-block;padding:0 8px;border-radius:99px;border:1px solid var(--line);margin:1px 0;font-size:13px}
+.opt{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:6px;margin:2px 0}
+.opt.pick{background:var(--hl);font-weight:600}
+.banner{padding:10px 12px;border-radius:8px;margin-bottom:10px;font-weight:600}
+.banner.good{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+.banner.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.up{color:var(--good)} .down{color:var(--bad)}
+p{margin:6px 0}
+svg text{font-family:inherit}
+#graph{width:100%;height:auto;display:block}
+.node-label{font-size:12px;fill:var(--ink);text-anchor:middle}
+.edge{stroke:var(--line);stroke-width:1.5}
+.edge.direct{stroke-dasharray:6 5}
+.edge.cand{stroke:var(--accent);stroke-width:2.5}
+.edge.walked{stroke:var(--accent);stroke-width:5;opacity:.85}
+.edge.walked.good{stroke:var(--good)} .edge.walked.bad{stroke:var(--bad)}
+.rate{display:flex;align-items:baseline;gap:8px;margin-top:10px}
+.rate b{font-size:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>RL Agent đi từ Learner đến Course</h1>
+  <p>Agent đi 3 bước trên bản đồ. Tới khóa An đã học (⭐) bằng path dài hơn 1 hop = reward 1. Sai, hoặc đi thẳng 1 hop = reward 0.</p>
+</header>
+
+<div class="controls">
+  <button id="btnBack">◀ Lùi</button>
+  <button class="primary" id="btnNext">Bước tiếp ▶</button>
+  <button class="good" id="btnGood">Ví dụ ĐÚNG</button>
+  <button class="bad" id="btnBad">Ví dụ SAI</button>
+  <button class="bad" id="btnDirect">Ví dụ ĐI THẲNG (1 hop)</button>
+  <button id="btnTrain">Cho agent học ×100</button>
+  <button id="btnReset">Reset</button>
+</div>
+
+<main>
+  <div class="card">
+    <svg id="graph" viewBox="0 0 760 500"></svg>
+    <div class="rate"><b id="sRate">0%</b><span class="mute">đúng (20 lượt gần nhất), <span id="sEp">0</span> lượt đã chơi</span></div>
+    <svg id="curve" viewBox="0 0 400 70" style="width:100%"></svg>
+  </div>
+
+  <div>
+    <div id="rewardBox"></div>
+    <div class="card">
+      <div class="steps" id="steps"></div>
+      <div id="detail"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const T = {learner:'🧑', course:'📘', teacher:'👩‍🏫', cat:'🏷️'};
+const COLOR = {learner:'var(--learner)', course:'var(--course)', teacher:'var(--teacher)', cat:'var(--cat)'};
+const N = {
+  an:{s:'An',t:'learner',x:60,y:250},
+  python:{s:'Python Basics',t:'course',x:210,y:130},
+  stats:{s:'Statistics',t:'course',x:210,y:380},
+  binh:{s:'Bình',t:'learner',x:380,y:70},
+  chi:{s:'Chi',t:'learner',x:380,y:200},
+  dung:{s:'Dũng',t:'learner',x:380,y:440},
+  lan:{s:'Cô Lan',t:'teacher',x:400,y:330},
+  ml:{s:'ML 101',t:'course',x:590,y:60},
+  web:{s:'Web Dev',t:'course',x:590,y:170},
+  photo:{s:'Photoshop',t:'course',x:590,y:270},
+  dl:{s:'Deep Learning',t:'course',x:590,y:440},
+  ds:{s:'Data Science',t:'cat',x:690,y:350},
+  design:{s:'Design',t:'cat',x:700,y:220},
+};
+const TARGETS = new Set(['ml','dl']);
+const EDGES = [
+  ['an','python','enr'],['an','stats','enr'],['an','ml','enr'],['an','dl','enr'],
+  ['binh','python','enr'],['binh','ml','enr'],['binh','photo','enr'],
+  ['chi','python','enr'],['chi','web','enr'],['chi','photo','enr'],
+  ['dung','stats','enr'],['dung','dl','enr'],
+  ['lan','ml','teach'],['lan','dl','teach'],['lan','stats','teach'],
+  ['ml','ds','cat'],['dl','ds','cat'],['stats','ds','cat'],
+  ['photo','design','cat'],['web','design','cat'],
+];
+const ADJ = {}, REL = {};
+for (const id in N) ADJ[id] = [];
+for (const [a,b,r] of EDGES){ ADJ[a].push(b); ADJ[b].push(a); REL[a+'>'+b] = r; REL[b+'>'+a] = r; }
+
+function verb(from, to){
+  if (from === to) return 'Đứng yên (dừng lại)';
+  const r = REL[from+'>'+to], ft = N[from].t, tn = N[to].s;
+  if (r === 'enr') return ft === 'learner' ? `Khóa đã học: ${tn}` : `Bạn học cùng: ${tn}`;
+  if (r === 'teach') return ft === 'teacher' ? `Khóa cô dạy: ${tn}` : `Giảng viên: ${tn}`;
+  return ft === 'course' ? `Chủ đề: ${tn}` : `Khóa cùng chủ đề: ${tn}`;
+}
+function explain(path){
+  const [, b, c, d] = path.map(i=>N[i]);
+  if (c.t === 'learner') return `An và ${c.s} cùng học ${b.s}, ${c.s} cũng học ${d.s}.`;
+  if (c.t === 'teacher') return `${b.s} và ${d.s} đều do ${c.s} dạy.`;
+  return `${b.s} và ${d.s} cùng chủ đề ${c.s}.`;
+}
+
+const STEPS = 3, ALPHA = 0.5, BASE_LR = 0.1;
+let theta, baseline, history, epCount, ep;
+function reset(){ theta = {}; baseline = 0; history = []; epCount = 0; ep = null; undo.length = 0; render(); }
+
+const acts = node => [...ADJ[node], node];
+function logits(node, t){ const k = node+'|'+t; return theta[k] || (theta[k] = acts(node).map(()=>0)); }
+function softmax(z){ const m = Math.max(...z), e = z.map(v=>Math.exp(v-m)), s = e.reduce((a,b)=>a+b); return e.map(v=>v/s); }
+function sample(p){ let r = Math.random(), i = 0; for (; i<p.length-1; i++){ r -= p[i]; if (r<=0) break; } return i; }
+
+function prepare(e){
+  const node = e.path[e.path.length-1], list = acts(node);
+  e.cur = {node, t:e.t, list, p:softmax(logits(node, e.t)), ai:null};
+}
+function newEp(forced){
+  const e = {path:['an'], steps:[], t:0, phase:'state', forced: forced || null, reward:null, learn:null, moved:null};
+  prepare(e);
+  return e;
+}
+function reward(path){
+  const moves = path.filter((n,i)=> i===0 || n!==path[i-1]);
+  const hops = moves.length - 1, loop = new Set(moves).size < moves.length;
+  const last = path[path.length-1];
+  return {isTarget: TARGETS.has(last), hops, loop, value: TARGETS.has(last) && hops > 1 && !loop ? 1 : 0};
+}
+function learn(e){
+  const R = e.reward.value, adv = R - baseline, rows = [];
+  for (const s of e.steps){
+    const z = logits(s.node, s.t), before = softmax(z);
+    for (let b=0; b<z.length; b++) z[b] += ALPHA * adv * ((b===s.ai ? 1 : 0) - before[b]);
+    rows.push({s, before:before[s.ai], after:softmax(z)[s.ai]});
+  }
+  e.learn = {R, adv, rows};
+  baseline += BASE_LR * (R - baseline);
+  history.push(R); epCount++;
+}
+
+const undo = [];
+function snap(){ undo.push(structuredClone({theta, baseline, history, epCount, ep})); if (undo.length > 300) undo.shift(); }
+function back(){
+  if (!undo.length) return;
+  ({theta, baseline, history, epCount, ep} = undo.pop());
+  render();
+}
+function stepEp(){ snap(); advance(); }
+function advance(){
+  if (!ep || ep.phase === 'learned') ep = newEp();
+  if (ep.phase === 'state'){
+    const c = ep.cur;
+    c.ai = ep.forced ? c.list.indexOf(ep.forced[ep.t+1]) : sample(c.p);
+    ep.moved = null;
+    ep.phase = 'chosen';
+  } else if (ep.phase === 'chosen'){
+    const c = ep.cur;
+    ep.steps.push(c);
+    ep.path.push(c.list[c.ai]);
+    ep.moved = c;
+    ep.t++;
+    ep.phase = ep.t === STEPS ? 'end' : 'state';
+    if (ep.phase === 'state') prepare(ep); else ep.cur = null;
+  } else if (ep.phase === 'end'){
+    ep.reward = reward(ep.path);
+    ep.phase = 'rewarded';
+  } else if (ep.phase === 'rewarded'){
+    learn(ep);
+    ep.phase = 'learned';
+  }
+  render();
+}
+function silentEp(){
+  const path = ['an'], steps = [];
+  for (let t=0; t<STEPS; t++){
+    const node = path[path.length-1], list = acts(node), p = softmax(logits(node,t)), ai = sample(p);
+    steps.push({node,t,list,p,ai}); path.push(list[ai]);
+  }
+  learn({steps, reward:reward(path)});
+}
+function forced(path){ snap(); ep = newEp(path); advance(); }
+
+// ---------- render ----------
+const $ = id => document.getElementById(id);
+const pct = v => Math.round(v*100) + '%';
+const chips = path => path.map(n=>`<span class="chip">${T[N[n].t]} ${N[n].s}</span>`).join(' → ');
+
+function renderGraph(){
+  let h = '';
+  const ph = ep ? ep.phase : 'idle';
+  const cp = ph === 'state' || ph === 'chosen' ? ep.cur : null;
+  const here = ep ? ep.path[ep.path.length-1] : 'an';
+  const walked = new Set();
+  if (ep) for (let i=1;i<ep.path.length;i++) walked.add(ep.path[i-1]+'>'+ep.path[i]);
+  const res = ep && ep.reward ? (ep.reward.value ? 'good' : 'bad') : '';
+  for (const [a,b] of EDGES){
+    const w = walked.has(a+'>'+b) || walked.has(b+'>'+a);
+    const cand = cp && ((cp.node===a && cp.list.includes(b)) || (cp.node===b && cp.list.includes(a)));
+    const direct = (a==='an' && TARGETS.has(b)) ? 'direct' : '';
+    h += `<line class="edge ${direct} ${w?'walked '+res:''} ${cand&&!w?'cand':''}" x1="${N[a].x}" y1="${N[a].y}" x2="${N[b].x}" y2="${N[b].y}"/>`;
+  }
+  if (cp) cp.list.forEach((to,i)=>{
+    if (to === cp.node) return;
+    const a = N[cp.node], b = N[to], mx = a.x+(b.x-a.x)*.55, my = a.y+(b.y-a.y)*.55, pk = i===cp.ai;
+    h += `<rect x="${mx-18}" y="${my-10}" width="36" height="18" rx="9" fill="${pk?'#fde68a':'var(--card)'}" stroke="var(--accent)"/><text x="${mx}" y="${my+3}" text-anchor="middle" font-size="11" fill="${pk?'#1c2230':'var(--ink)'}">${pct(cp.p[i])}</text>`;
+  });
+  for (const id in N){
+    const n = N[id], onPath = ep && ep.path.includes(id), isHere = id === here;
+    if (TARGETS.has(id)) h += `<circle cx="${n.x}" cy="${n.y}" r="25" fill="none" stroke="#eab308" stroke-width="2.5" stroke-dasharray="4 3"/><text x="${n.x+20}" y="${n.y-18}" font-size="14">⭐</text>`;
+    h += `<circle cx="${n.x}" cy="${n.y}" r="19" fill="var(--card)" stroke="${COLOR[n.t]}" stroke-width="${isHere?5:onPath?3.5:2}"/>
+      <text x="${n.x}" y="${n.y+6}" text-anchor="middle" font-size="17">${T[n.t]}</text>
+      <text class="node-label" x="${n.x}" y="${n.y+36}">${n.s}</text>`;
+  }
+  h += `<text x="${N[here].x}" y="${N[here].y-30}" text-anchor="middle" font-size="18">🤖</text>`;
+  $('graph').innerHTML = h;
+}
+
+function renderPanel(){
+  const ph = ep ? ep.phase : 'idle';
+  const on = {idle:['State'], state:['State','Actions'], chosen:['State','Actions'], end:['Environment'], rewarded:['Environment'], learned:['Học']}[ph];
+  const moved = ph === 'state' && ep.moved;
+  const tabs = ['State','Actions','Environment','Học'].map(k=>{
+    const icon = {State:'📍',Actions:'🧭',Environment:'🌍',Học:'🧠'}[k];
+    return `<span class="${on.includes(k) || (moved && k==='Environment') ? 'on' : ''}">${icon} ${k}</span>`;
+  }).join('');
+  $('steps').innerHTML = tabs;
+
+  let d = '';
+  if (ph === 'idle') d = `<p>Agent đang ở <b>An</b>. Bấm <b>Bước tiếp</b> để bắt đầu.</p>`;
+  else if (ph === 'state' || ph === 'chosen'){
+    const c = ep.cur;
+    if (moved) d += `<p class="mute">🌍 Môi trường: đã chuyển agent sang ${N[ep.moved.list[ep.moved.ai]].s}. Chưa có reward.</p>`;
+    d += `<p>📍 Agent đang ở <b>${N[c.node].s}</b>, bước ${c.t+1}/${STEPS}.<br><span class="mute">Đã đi: ${chips(ep.path)}</span></p>
+      <p>🧭 Có thể đi ${ph==='chosen' ? '(đã chọn)' : 'theo xác suất'}:</p>` +
+      c.list.map((to,i)=>`<div class="opt ${i===c.ai?'pick':''}"><span>${verb(c.node,to)}${c.node==='an' && TARGETS.has(to) ? ' <span class="down">(đi thẳng 1 hop, không được thưởng)</span>' : ''}</span><span>${pct(c.p[i])}</span></div>`).join('');
+  } else if (ph === 'end') d = `<p>🌍 Hết ${STEPS} bước. Agent dừng ở <b>${N[ep.path[ep.path.length-1]].s}</b>.</p><p>Môi trường kiểm tra: đây có phải khóa An thật sự học (⭐) không?</p>`;
+  else if (ph === 'rewarded'){
+    const r = ep.reward;
+    d = `<p>🌍 Môi trường chấm 2 điều kiện:</p>
+      <p>${r.isTarget ? '✅' : '❌'} Cuối path là khóa An đã học (⭐)</p>
+      <p>${r.hops > 1 && !r.loop ? '✅' : '❌'} Path dài hơn 1 hop (đi thẳng không tính) và không vòng lại node cũ. Đã đi ${r.hops} hop${r.loop ? ', có vòng lại' : ''}</p>
+      <p>→ <b>reward = ${r.value}</b></p>`;
+  } else if (ph === 'learned'){
+    const L = ep.learn;
+    const verdict = L.adv > 0 ? 'Đúng hơn kỳ vọng: <b class="up">tăng</b> xác suất các bước đã đi.'
+      : L.adv < 0 ? 'Tệ hơn kỳ vọng: <b class="down">giảm</b> xác suất các bước đã đi.'
+      : 'Chưa có gì để so sánh, policy giữ nguyên. Cần một lượt đúng để bắt đầu học.';
+    d = `<p>🧠 ${verdict}</p>` + L.rows.map(r=>{
+      const dd = r.after - r.before;
+      return `<div class="opt"><span>${N[r.s.node].s}: ${verb(r.s.node, r.s.list[r.s.ai])}</span><span class="${dd>0.0005?'up':dd<-0.0005?'down':''}">${pct(r.before)} → ${pct(r.after)}</span></div>`;
+    }).join('');
+  }
+  $('detail').innerHTML = d;
+
+  const rb = $('rewardBox');
+  if (ep && ep.reward && (ph === 'rewarded' || ph === 'learned')){
+    const ok = ep.reward.value === 1;
+    rb.innerHTML = `<div class="banner ${ok?'good':'bad'}">${ok?'✅ ĐÚNG, reward = 1':'❌ SAI, reward = 0'}<div style="font-weight:400">${chips(ep.path)}</div>${ok?`<div style="font-weight:400;margin-top:4px">Giải thích cho An: ${explain(ep.path)}</div>`:''}${ep.reward.isTarget && ep.reward.value === 0 ? `<div style="font-weight:400;margin-top:4px">Tới đúng khóa nhưng ${ep.reward.hops <= 1 ? 'đi thẳng 1 hop' : 'vòng lại node cũ'}, không được thưởng (không có gì để giải thích cho An).</div>` : ''}</div>`;
+  } else rb.innerHTML = '';
+}
+
+function renderStats(){
+  const last = history.slice(-20), rate = last.length ? last.reduce((a,b)=>a+b)/last.length : 0;
+  $('sRate').textContent = Math.round(rate*100) + '%';
+  $('sEp').textContent = epCount;
+  const W = 400, H = 70, n = Math.max(history.length, 50);
+  const pts = history.map((_,i)=>{ const s = history.slice(Math.max(0,i-19), i+1); return s.reduce((a,b)=>a+b)/s.length; });
+  const line = pts.map((v,i)=>`${(i/(n-1))*(W-10)+5},${H-6-v*(H-12)}`).join(' ');
+  $('curve').innerHTML = `<line x1="5" x2="${W-5}" y1="6" y2="6" stroke="var(--line)" stroke-dasharray="3"/><line x1="5" x2="${W-5}" y1="${H-6}" y2="${H-6}" stroke="var(--line)"/>${pts.length>1?`<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${line}"/>`:''}`;
+}
+function render(){ $('btnBack').disabled = !undo.length; renderGraph(); renderPanel(); renderStats(); }
+
+$('btnNext').onclick = stepEp;
+$('btnGood').onclick = () => forced(['an','python','binh','ml']);
+$('btnBad').onclick = () => forced(['an','python','chi','web']);
+$('btnDirect').onclick = () => forced(['an','ml','ml','ml']);
+$('btnReset').onclick = reset;
+$('btnBack').onclick = back;
+$('btnTrain').onclick = () => { snap(); for (let i=0;i<100;i++) silentEp(); ep = null; render(); };
+reset();
+</script>
+</body>
+</html>
