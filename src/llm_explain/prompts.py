@@ -32,6 +32,9 @@ Return ONLY a JSON list. Each element: {"head": ..., "relation": ..., "tail": ..
   other (any statement that is none of the above, such as interest, similarity, difficulty, benefit or a reason)
 - quote: copied word for word from the explanation: the whole clause stating the claim, including any words about time, completion or reason.
 Rules:
+- Only claims that a sentence actually states. A course or concept NAME on its own is not a claim: never infer what a course teaches from its title.
+- Head and tail follow the direction given in the relation list. State each fact once; never add the reversed claim.
+- Any description of a person or course (for example similar interests, similar background, same topic, beneficial) is its own "other" claim, even inside a "who ..." phrase.
 - Always keep the codes: head and tail are "[C1]", "[K1]", "[L1]" and so on, never the bare name.
 - Every reason after "because" (or "since", "as", "which", "providing", "who") is its own claim, one per reason. A judgement such as same topic, relevant, might interest, useful or similar is relation "other".
 - The recommended_to quote contains only the words that say the course is recommended, never the reason.
