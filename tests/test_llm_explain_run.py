@@ -1,4 +1,6 @@
 import json
+import sys
+from types import SimpleNamespace
 import numpy as np
 import pytest
 from llm_explain import core, prompts, run
@@ -80,3 +82,27 @@ def test_namer_falls_back_to_id_when_name_is_empty(tmp_path):
         (tmp_path / f"{t}.json").write_text(json.dumps({"id": "X_1", "name": " "}))
     n = run.namer(tmp_path, tmp_path)
     assert n("school", 0) == "X_1" and n("concept", 0) == "X_1"
+
+
+def test_load_model_pins_and_logs_hub_sha_without_config_commit_hash(monkeypatch):
+    """transformers 5.22.1 configs have no _commit_hash."""
+    seen = []
+
+    class Loader:
+        @staticmethod
+        def from_pretrained(name, revision=None, **kw):
+            seen.append(revision)
+            return SimpleNamespace(config=SimpleNamespace())
+
+    class Api:
+        def model_info(self, name, revision):
+            return SimpleNamespace(sha="abc123" if revision == "main" else revision)
+
+    fakes = {"torch": SimpleNamespace(float16="f16", __version__="t"),
+             "transformers": SimpleNamespace(set_seed=lambda s: None, __version__="5.22.1", AutoTokenizer=Loader,
+                                             AutoModelForCausalLM=Loader, BitsAndBytesConfig=lambda **kw: None),
+             "huggingface_hub": SimpleNamespace(HfApi=Api)}
+    for k, v in fakes.items():
+        monkeypatch.setitem(sys.modules, k, v)
+    _, info = run.load_model("m", "main")
+    assert info["revision"] == "abc123" and seen == ["abc123", "abc123"]

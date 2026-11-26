@@ -187,8 +187,10 @@ def process(ex, chat):
 def load_model(name, revision):
     import torch
     import transformers
+    from huggingface_hub import HfApi
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
     transformers.set_seed(0)
+    revision = HfApi().model_info(name, revision=revision).sha  # resolve first, so the logged sha is what loads
     tok = AutoTokenizer.from_pretrained(name, revision=revision)
     model = AutoModelForCausalLM.from_pretrained(
         name, revision=revision, device_map="auto",
@@ -200,7 +202,7 @@ def load_model(name, revision):
         out = model.generate(**enc, max_new_tokens=max_new, do_sample=False)
         return tok.decode(out[0][enc["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
-    info = {"model": name, "revision": model.config._commit_hash, "quantization": "bitsandbytes 4-bit, compute float16",
+    info = {"model": name, "revision": revision, "quantization": "bitsandbytes 4-bit, compute float16",
             "decoding": "greedy (do_sample=False)", "seed": 0, "torch": torch.__version__,
             "transformers": transformers.__version__}
     return chat, info
