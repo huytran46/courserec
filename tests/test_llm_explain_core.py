@@ -97,3 +97,16 @@ def test_parse_claims():
     assert core.parse_claims(ok)[0]["relation"] == "enrolled_in"
     for bad in ["no json", '[{"head": 1', '["a","b"]', '[{"head":"[L1]"}]', "[]"]:
         assert core.parse_claims(bad) is None, bad
+
+
+def test_wording_in_another_clause_does_not_contaminate_a_claim():
+    text = "[L2] enrolled in [C1], and [L2] enrolled in [C2] because [L2] took [C1] after class."
+    assert lab(claim("[L2]", "enrolled_in", "[C1]", "[L2] enrolled in [C1]"), G, text) == "supported"
+    assert lab(claim("[L2]", "enrolled_in", "[C2]", "[L2] enrolled in [C2]"), G, text) == "supported"
+    assert lab(claim("[L2]", "enrolled_in", "[C1]", "[L2] took [C1]"), G, text) == "unsupported_claim"
+
+
+def test_quote_spanning_clauses_scans_all_of_them():
+    text = "[L2] enrolled in [C1], and then enrolled in [C2]."
+    q = "[L2] enrolled in [C1], and then enrolled in [C2]"
+    assert lab(claim("[L2]", "enrolled_in", "[C2]", q), G, text) == "unsupported_claim"

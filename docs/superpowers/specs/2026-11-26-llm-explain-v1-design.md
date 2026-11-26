@@ -37,3 +37,14 @@ Non-goals: change UPGPR, re-rank, fix odd concept links.
   A separate score step computes precision/recall of the checker.
 - Odd-but-faithful paths: a `path_odd` column in the CSV; counted by the user.
 - LLM judge: only if the checker proves weak on hand labels (not built now).
+
+## Revision after first smoke run (2026-11-26)
+Found: sentence-wide wording scan spread one word to every claim; reasons stayed inside the recommendation
+claim (excluded from rates); extractor dropped codes.
+- Wording scan is clause-wide.
+- Extractor prompt gets a worked example with fake entities: keep codes, one claim per reason.
+- Headline metric is explanation-level (any flagged claim or flagged wording). Framing reported separately.
+  Limit: an unsupported reason with no trigger word that the extractor keeps inside the framing claim is still missed.
+- Dev (8) and validation (20) splits are disjoint. Full run blocked until the gate passes: agreement >= 0.80
+  and above the majority baseline, set before any validation output.
+- Fallback if it fails: LLM judge on path + whole explanation (see src/llm_explain/README.md). Not built.

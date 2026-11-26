@@ -65,3 +65,61 @@ def test_score_rejects_blank_typo_or_changed_rows():
     sheet[0].update(human_true="true", head="[C9]")
     with pytest.raises(ValueError):
         report.score_labels(sheet, rows)
+
+
+def test_explanation_level_rate_counts_flagged_claim_or_wording():
+    rows = [row(0, "concept", ["supported", "recommendation_framing"]),
+            row(1, "concept", ["supported", "unknown_entity"]),
+            {**row(2, "concept", ["recommendation_framing"]), "flag_wording": True},
+            row(3, "concept", [], failed=True)]
+    s = report.summarize(rows)["concept"]
+    assert (s["explanations_judged"], s["explanations_flagged"], s["explanations_flagged_rate"]) == (3, 2, 2 / 3)
+    assert s["explanations_with_framing"] == 2
+
+
+def test_splits_are_disjoint_deterministic_with_fixed_composition():
+    ex = [{"example_id": i, "group": g} for i, g in
+          enumerate(["co_learner"] * 100 + ["concept"] * 100 + ["teacher"] * 25 + ["school"] * 4)]
+    dev, val = report.split_ids(ex)
+    assert report.split_ids(list(reversed(ex))) == (dev, val)
+    assert not set(dev) & set(val)
+    comp = lambda ids: {g: sum(ex[i]["group"] == g for i in ids) for g in report.DEV_QUOTAS}
+    assert comp(dev) == {"co_learner": 2, "concept": 2, "teacher": 2, "school": 2}
+    assert comp(val) == {"co_learner": 6, "concept": 10, "teacher": 2, "school": 2}
+    assert {0, 100, 200, 225} <= set(dev)   # the four already inspected in the first smoke run
+
+
+def gate_case(human, flagged):
+    rows = [row(i, "concept", ["unknown_entity" if f else "supported"]) for i, f in enumerate(flagged)]
+    sheet = report.gate_rows(rows)
+    for r, h in zip(sheet, human):
+        r["human_has_unsupported"] = "true" if h else "false"
+    return report.score_gate(sheet, rows)
+
+
+def test_gate_sheet_hides_checker_output():
+    sheet = report.gate_rows([row(0, "concept", ["unknown_entity"])])
+    assert list(sheet[0]) == report.GATE_FIELDS and sheet[0]["human_has_unsupported"] == ""
+
+
+def test_gate_passes_only_above_threshold_and_majority_baseline():
+    human = [True] * 12 + [False] * 8
+    good = gate_case(human, [True] * 11 + [False] * 9)
+    assert good["agreement"] == 0.95 and good["passed"] is True
+    skew = [True] * 17 + [False] * 3
+    always = gate_case(skew, [True] * 20)
+    assert always["agreement"] == 0.85 and always["majority_baseline"] == 0.85 and always["passed"] is False
+    assert gate_case(human, [True] * 20)["passed"] is False
+
+
+def test_gate_extraction_failure_counts_as_disagreement_and_blanks_error():
+    rows = [row(0, "concept", [], failed=True), row(1, "concept", ["supported"])]
+    sheet = report.gate_rows(rows)
+    for r in sheet:
+        r["human_has_unsupported"] = "false"
+    assert report.score_gate(sheet, rows)["agreement"] == 0.5
+    sheet[0]["human_has_unsupported"] = ""
+    with pytest.raises(ValueError):
+        report.score_gate(sheet, rows)
+    with pytest.raises(ValueError):
+        report.score_gate(sheet[1:], rows)

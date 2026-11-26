@@ -2,7 +2,8 @@
 
   prepare   extract MOOCCube relations/entities from the zip and run preprocess_mooc.py (vocab files)
   sample    rebuild the frozen Top-10 (as m5_paths.py), check gates, sample displayed paths  -> sample.jsonl
-  generate  writer + extractor with Qwen, rule-based check (GPU)                              -> results.jsonl
+  generate  writer + extractor with Qwen, rule-based check (GPU); --split dev (tune), val, all  -> results*.jsonl
+  gate-sheet / gate  blind explanation-level hand labels on val; `all` is blocked until the gate passes
   report    per-group summary and the hand-label sheet                                       -> summary.json, hand_labels.csv
   score     checker precision/recall against a filled hand-label sheet                       -> checker_scores.json
 """
@@ -208,21 +209,40 @@ def load_model(name, revision):
     return chat, info
 
 
+def fingerprint(out):
+    """Changes whenever the checker, the prompts or the sample change."""
+    h = hashlib.sha256()
+    for p in (Path(core.__file__), Path(prompts.__file__), Path(report.__file__), Path(out, "sample.jsonl")):
+        h.update(p.read_bytes())
+    return h.hexdigest()
+
+
+def require_gate(out, fp):
+    p = Path(out, "gate_result.json")
+    g = json.loads(p.read_text()) if p.exists() else None
+    if not g or not g["passed"] or g["fingerprint"] != fp:
+        raise ValueError("full run is blocked: no passed gate_result.json for this checker, prompts and sample")
+    return g
+
+
 def cmd_generate(a):
     examples = read_jsonl(os.path.join(a.out, "sample.jsonl"))
-    if a.smoke:
-        first = {}
-        for e in examples:
-            first.setdefault(e["group"], e)
-        examples = list(first.values())
-    dest = os.path.join(a.out, "results_smoke.jsonl" if a.smoke else "results.jsonl")
-    meta_path = os.path.join(a.out, "meta_generate.json")
+    if a.split != "all":
+        dev, val = report.split_ids(examples)
+        keep = set(dev if a.split == "dev" else val)
+        examples = [e for e in examples if e["example_id"] in keep]
+    suffix = "" if a.split == "all" else "_" + a.split
+    dest = os.path.join(a.out, f"results{suffix}.jsonl")
+    meta_path = os.path.join(a.out, f"meta_generate{suffix}.json")
+    if a.split == "all":
+        a.revision = require_gate(a.out, fingerprint(a.out))["revision"]
     fixed = {"writer_prompt_template": prompts.writer(
         {"entities": [{"code": "L1", "name": "<learner>"}, {"code": "C1", "name": "<course>"}],
          "triples": [("L1", "enrolled_in", "C1")], "target": "L1", "final": "C1"}),
-        "extractor_prompt": prompts.EXTRACT, "sample_sha256": sha256(os.path.join(a.out, "sample.jsonl"))}
+        "extractor_prompt": prompts.EXTRACT, "sample_sha256": sha256(os.path.join(a.out, "sample.jsonl")),
+        "fingerprint": fingerprint(a.out)}
     done = set()
-    if a.smoke and os.path.exists(dest):
+    if a.split == "dev" and os.path.exists(dest):  # dev is rerun freely while tuning
         os.remove(dest)
     elif os.path.exists(dest):  # resume only under the same prompts and sample
         with open(meta_path, encoding="utf-8") as f:
@@ -232,20 +252,54 @@ def cmd_generate(a):
         done = {r["example_id"] for r in read_jsonl(dest)}
         a.revision = old["revision"]
     chat, info = load_model(MODEL, a.revision)
-    if not a.smoke:
-        dump({**info, **fixed}, meta_path)
+    dump({**info, **fixed}, meta_path)
     with open(dest, "a", encoding="utf-8") as f:
         for n, ex in enumerate((e for e in examples if e["example_id"] not in done), 1):
             r = process(ex, chat)
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
             f.flush()
-            if a.smoke:
+            if a.split == "dev":  # val output is not printed: it is hand-labeled blind
                 print(f"== {r['group']}\n{r['path_facts']}\n-> {r['explanation']}")
                 for c in r["claims"] or ["EXTRACTION FAILED: " + r["extractor_raw"]]:
                     print("  ", c)
             elif n % 10 == 0:
                 print(n, "done", flush=True)
     print("wrote", dest)
+
+
+# ------------------------------------------------------------------ gate
+def write_csv(path, fields, rows):
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fields)
+        w.writeheader()
+        w.writerows(rows)
+
+
+def cmd_gate_sheet(a):
+    rows = read_jsonl(os.path.join(a.out, "results_val.jsonl"))
+    _, val = report.split_ids(read_jsonl(os.path.join(a.out, "sample.jsonl")))
+    if sorted(r["example_id"] for r in rows) != val:
+        raise ValueError("results_val.jsonl is incomplete; rerun generate --split val")
+    p = os.path.join(a.out, "gate_labels.csv")
+    if os.path.exists(p):
+        print("kept existing", p)
+        return
+    write_csv(p, report.GATE_FIELDS, report.gate_rows(rows))
+    print("wrote", p)
+
+
+def cmd_gate(a):
+    rows = read_jsonl(os.path.join(a.out, "results_val.jsonl"))
+    with open(os.path.join(a.out, "meta_generate_val.json"), encoding="utf-8") as f:
+        meta = json.load(f)
+    if meta["fingerprint"] != fingerprint(a.out):
+        raise ValueError("checker, prompts or sample changed since the val run; rerun it with a fresh --out")
+    with open(a.labels, encoding="utf-8-sig", newline="") as f:
+        sheet = list(csv.DictReader(f))
+    g = {**report.score_gate(sheet, rows), "fingerprint": meta["fingerprint"], "revision": meta["revision"],
+         "labels_sha256": sha256(a.labels)}
+    dump(g, os.path.join(a.out, "gate_result.json"))
+    print(json.dumps(g, indent=1))
 
 
 # ------------------------------------------------------------------ report / score
@@ -263,10 +317,9 @@ def cmd_report(a):
     if os.path.exists(sheet):
         print("kept existing", sheet, "(delete it yourself to regenerate)")
         return
-    with open(sheet, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=report.CSV_FIELDS)
-        w.writeheader()
-        w.writerows(report.label_rows(report.pick_for_labeling(rows)))
+    dev = set(report.split_ids(rows)[0])
+    write_csv(sheet, report.CSV_FIELDS,
+              report.label_rows(report.pick_for_labeling([r for r in rows if r["example_id"] not in dev])))
     print("wrote", sheet)
 
 
@@ -295,12 +348,15 @@ def main():
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--out", required=True)
     p = sub.add_parser("generate"); p.add_argument("--out", required=True)
-    p.add_argument("--smoke", action="store_true"); p.add_argument("--revision", default="main")
+    p.add_argument("--split", choices=["dev", "val", "all"], required=True)
+    p.add_argument("--revision", default="main")
+    p = sub.add_parser("gate-sheet"); p.add_argument("--out", required=True)
+    p = sub.add_parser("gate"); p.add_argument("--out", required=True); p.add_argument("--labels", required=True)
     p = sub.add_parser("report"); p.add_argument("--out", required=True)
     p = sub.add_parser("score"); p.add_argument("--out", required=True); p.add_argument("--labels", required=True)
     a = ap.parse_args()
     {"prepare": cmd_prepare, "sample": cmd_sample, "generate": cmd_generate, "report": cmd_report,
-     "score": cmd_score}[a.cmd](a)
+     "score": cmd_score, "gate-sheet": cmd_gate_sheet, "gate": cmd_gate}[a.cmd](a)
 
 
 if __name__ == "__main__":

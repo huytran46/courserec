@@ -18,6 +18,8 @@ WORDING = re.compile(
     r"\b(finish\w*|complet\w*|passed|master\w*|then|after\w*|before|later|previously|subsequently|"
     r"continu\w*|went on|moved on|buil[dt]s? (?:up)?on|building (?:up)?on|prerequisite\w*|"
     r"foundation (?:for|of)|prepares?|leads? to)\b", re.I)
+# clause starts: after punctuation, or before a joining word
+CLAUSE_BREAK = re.compile(r"[.!?;,:]+\s*|\s+(?=(?:and|but|because|since|who|which|while|where|as)\b)")
 CJK = re.compile("[㐀-鿿]")
 BRACKET = re.compile(r"\[([LCKTS]\d+)\]")
 
@@ -76,15 +78,17 @@ def cjk_leak(text, facts_):
 
 
 def _evidence(quote, explanation, facts_):
-    """Text to scan for wording: every sentence the quote comes from; the whole explanation if the quote
-    is not literally there. So a trimmed or invented quote cannot hide a word."""
+    """Text to scan for wording: every clause the quote touches; the whole explanation if the quote is not
+    literally there. So a trimmed or invented quote cannot hide a word in its own clause, and a word in
+    another clause does not spill over onto this claim."""
     norm = lambda s: " ".join(_strip_names(s, facts_).lower().split())
-    q = norm(str(quote)).strip(" .")
+    q = norm(str(quote)).strip(" .,;:")
     text = norm(explanation)
     if not q or q not in text:
         return text
-    hits = [s for s in re.split(r"(?<=[.!?])\s+", text) if q in s]
-    return " ".join(hits) if hits else text
+    cuts = sorted({0, len(text), *(m.end() for m in CLAUSE_BREAK.finditer(text))})
+    hits = [(m.start(), m.start() + len(q)) for m in re.finditer(re.escape(q), text)]
+    return " ".join(text[x:y] for x, y in zip(cuts, cuts[1:]) if any(x < e and s < y for s, e in hits))
 
 
 def label_claim(claim, facts_, explanation):

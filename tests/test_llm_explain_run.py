@@ -106,3 +106,29 @@ def test_load_model_pins_and_logs_hub_sha_without_config_commit_hash(monkeypatch
         monkeypatch.setitem(sys.modules, k, v)
     _, info = run.load_model("m", "main")
     assert info["revision"] == "abc123" and seen == ["abc123", "abc123"]
+
+
+def test_extractor_prompt_has_a_worked_example_with_fake_entities():
+    p = prompts.extractor("TEXT")
+    ex = p.split("Example", 1)[1]
+    claims = core.parse_claims(ex.split("Output:\n", 1)[1].split("\n\n")[0])
+    assert {c["relation"] for c in claims} >= {"enrolled_in", "teaches_concept", "recommended_to", "other"}
+    assert sum(c["relation"] == "other" for c in claims) >= 2
+    assert all(core.BRACKET.search(c["head"]) for c in claims)
+    assert not core.CJK.search(ex)
+    source = ex.split("Explanation:\n", 1)[1].split("\nOutput:")[0]
+    assert all(c["quote"] in source for c in claims)
+    framing = next(c for c in claims if c["relation"] == "recommended_to")
+    assert "because" not in framing["quote"]
+
+
+def test_full_run_needs_a_passed_gate_for_the_same_code(tmp_path):
+    with pytest.raises(ValueError):
+        run.require_gate(tmp_path, "fp")
+    p = tmp_path / "gate_result.json"
+    for bad in [{"passed": False, "fingerprint": "fp"}, {"passed": True, "fingerprint": "old"}]:
+        p.write_text(json.dumps(bad))
+        with pytest.raises(ValueError):
+            run.require_gate(tmp_path, "fp")
+    p.write_text(json.dumps({"passed": True, "fingerprint": "fp"}))
+    run.require_gate(tmp_path, "fp")
